@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react";
@@ -13,7 +12,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useFirestore } from "@/firebase";
+import { useAuth, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -46,7 +45,18 @@ export default function RegisterPage() {
         createdAt: new Date().toISOString(),
       };
 
-      await setDoc(doc(db, "users", user.uid), userData);
+      const userRef = doc(db, "users", user.uid);
+      
+      // Non-blocking setDoc with error emitter
+      setDoc(userRef, userData)
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: userRef.path,
+            operation: 'create',
+            requestResourceData: userData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
 
       setUser({
         uid: user.uid,
@@ -62,7 +72,6 @@ export default function RegisterPage() {
         description: error.message || "An error occurred",
         variant: "destructive",
       });
-    } finally {
       setIsLoading(false);
     }
   };

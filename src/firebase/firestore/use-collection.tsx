@@ -27,13 +27,25 @@ export function useCollection<T = DocumentData>(query: Query<T> | null) {
         setData(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() } as T)));
         setLoading(false);
       },
-      async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: (query as any).path || 'unknown',
-          operation: 'list',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        setError(permissionError);
+      async (serverError: any) => {
+        // Only emit if it's a permission error
+        if (serverError.code === 'permission-denied' || serverError.message?.toLowerCase().includes('permission')) {
+          // Attempt to extract path from internal query state or reference
+          const path = (query as any)._query?.path?.segments?.join('/') || 
+                       (query as any).path || 
+                       'tickets';
+
+          const permissionError = new FirestorePermissionError({
+            path,
+            operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          setError(permissionError);
+        } else {
+          // For other errors like missing indexes, log directly
+          console.error('Firestore Collection Error:', serverError);
+          setError(serverError);
+        }
         setLoading(false);
       }
     );

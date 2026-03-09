@@ -27,13 +27,18 @@ export function useDoc<T = DocumentData>(ref: DocumentReference<T> | null) {
         setData(snapshot.exists() ? ({ id: snapshot.id, ...snapshot.data() } as T) : null);
         setLoading(false);
       },
-      async (serverError) => {
-        const permissionError = new FirestorePermissionError({
-          path: ref.path,
-          operation: 'get',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        setError(permissionError);
+      async (serverError: any) => {
+        if (serverError.code === 'permission-denied' || serverError.message?.toLowerCase().includes('permission')) {
+          const permissionError = new FirestorePermissionError({
+            path: ref.path,
+            operation: 'get',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+          setError(permissionError);
+        } else {
+          console.error('Firestore Document Error:', serverError);
+          setError(serverError);
+        }
         setLoading(false);
       }
     );
