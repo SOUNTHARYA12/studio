@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { 
   Ticket as TicketIcon, 
@@ -9,8 +8,7 @@ import {
   Clock, 
   AlertCircle,
   TrendingUp,
-  History,
-  Loader2
+  History
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,6 +25,11 @@ import { cn } from "@/lib/utils";
 export default function DashboardPage() {
   const { user } = useStore();
   const db = useFirestore();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const ticketsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
@@ -152,7 +155,7 @@ export default function DashboardPage() {
                           </p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-muted-foreground whitespace-nowrap">
-                              {ticket.createdAt ? formatDistanceToNow(new Date(ticket.createdAt)) : "Some time"} ago
+                              {isMounted && ticket.createdAt ? formatDistanceToNow(new Date(ticket.createdAt)) : "..."} ago
                             </span>
                             <span className="text-xs text-muted-foreground">•</span>
                             <span className="text-xs font-medium text-primary truncate">{ticket.issueCategory}</span>

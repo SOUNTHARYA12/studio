@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -28,6 +27,11 @@ import { Ticket } from "@/lib/types";
 export default function AnalyticsPage() {
   const { user } = useStore();
   const db = useFirestore();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const ticketsQuery = useMemo(() => {
     if (!db || !user) return null;
@@ -65,6 +69,8 @@ export default function AnalyticsPage() {
   }, [tickets]);
 
   const timeSeriesData = useMemo(() => {
+    if (!isMounted) return [];
+    
     const last7Days = eachDayOfInterval({
       start: subDays(new Date(), 6),
       end: new Date(),
@@ -81,7 +87,7 @@ export default function AnalyticsPage() {
       }).length;
       return { date: dateStr, count };
     });
-  }, [tickets]);
+  }, [tickets, isMounted]);
 
   const COLORS = ['#538CC6', '#4DDEE1', '#F4A261', '#E76F51', '#2A9D8F', '#264653'];
 
@@ -99,7 +105,7 @@ export default function AnalyticsPage() {
             <CardDescription>Volume of requests received in the last 7 days</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            {isLoading ? <Skeleton className="w-full h-full" /> : (
+            {isLoading || !isMounted ? <Skeleton className="w-full h-full" /> : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timeSeriesData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
@@ -128,7 +134,7 @@ export default function AnalyticsPage() {
             <CardDescription>Distribution of ticket types</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            {isLoading ? <Skeleton className="w-full h-full" /> : (
+            {isLoading || !isMounted ? <Skeleton className="w-full h-full" /> : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -158,7 +164,7 @@ export default function AnalyticsPage() {
             <CardDescription>Breakdown of urgency levels</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
-            {isLoading ? <Skeleton className="w-full h-full" /> : (
+            {isLoading || !isMounted ? <Skeleton className="w-full h-full" /> : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={priorityData}>
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
