@@ -34,7 +34,7 @@ export default function DashboardPage() {
   const ticketsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     const ticketsRef = collection(db, 'tickets');
-    if (user.role === 'admin') {
+    if (user.role === 'agent') {
       return ticketsRef;
     }
     return query(ticketsRef, where('userId', '==', user.uid));
@@ -69,7 +69,7 @@ export default function DashboardPage() {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Support Overview</h1>
-          <p className="text-muted-foreground">Monitor and manage your support activity</p>
+          <p className="text-muted-foreground">{user?.role === 'agent' ? "Global platform analytics" : "Monitor and manage your support activity"}</p>
         </div>
         <Button asChild>
           <Link href="/tickets/new">
@@ -113,7 +113,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest support requests and status changes</CardDescription>
+                <CardDescription>Latest requests and changes</CardDescription>
               </div>
               <History className="w-5 h-5 text-muted-foreground" />
             </div>
@@ -130,11 +130,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="max-w-[250px]">
                   <p className="font-semibold">No tickets yet</p>
-                  <p className="text-sm text-muted-foreground">Submit your first support request to get started.</p>
                 </div>
-                <Button asChild variant="outline">
-                  <Link href="/tickets/new">Create Ticket</Link>
-                </Button>
               </div>
             ) : (
               <div className="space-y-4">
@@ -164,7 +160,6 @@ export default function DashboardPage() {
                       </div>
                       <div className="flex items-center gap-3 shrink-0 ml-4">
                         <Badge variant={getPriorityColor(ticket.priority)} className="hidden sm:inline-flex">{ticket.priority}</Badge>
-                        <Badge variant="secondary" className="hidden sm:inline-flex">{ticket.status}</Badge>
                       </div>
                     </div>
                   </Link>
@@ -181,8 +176,8 @@ export default function DashboardPage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Performance Trends</CardTitle>
-                <CardDescription>Support efficiency metrics</CardDescription>
+                <CardTitle>Trends</CardTitle>
+                <CardDescription>Support efficiency</CardDescription>
               </div>
               <TrendingUp className="w-5 h-5 text-primary" />
             </div>
@@ -197,32 +192,6 @@ export default function DashboardPage() {
                 <div 
                   className="h-full bg-emerald-500 transition-all duration-1000" 
                   style={{ width: `${totalTickets > 0 ? (resolvedTickets/totalTickets)*100 : 0}%` }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Avg. Response Time</span>
-                <span className="font-bold">4.2 hrs</span>
-              </div>
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-1000" 
-                  style={{ width: '85%' }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Customer Satisfaction</span>
-                <span className="font-bold">98%</span>
-              </div>
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-accent transition-all duration-1000" 
-                  style={{ width: '98%' }}
                 />
               </div>
             </div>

@@ -1,15 +1,15 @@
-
 "use client"
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +18,7 @@ import { useAuth, useFirestore } from "@/firebase";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<'user' | 'agent'>("user");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { setUser } = useStore();
@@ -35,14 +36,22 @@ export default function LoginPage() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
-      const userDoc = await getDoc(doc(db, "users", user.uid));
-      const userData = userDoc.exists() ? userDoc.data() : { role: 'user' };
+      const userRef = doc(db, "users", user.uid);
+      const userDoc = await getDoc(userRef);
+      
+      // Update role in Firestore based on selection if it exists, otherwise use selection
+      const userData = userDoc.exists() ? userDoc.data() : { role };
+      
+      // Update role if explicitly selected differently
+      if (userData.role !== role) {
+        await updateDoc(userRef, { role });
+      }
 
       setUser({
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
-        role: userData.role as 'user' | 'admin',
+        role: role,
       });
 
       router.push("/dashboard");
@@ -67,16 +76,35 @@ export default function LoginPage() {
             </div>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">SupportLens</h1>
-          <p className="text-muted-foreground">Sign in to manage your support tickets</p>
+          <p className="text-muted-foreground">Sign in to your account</p>
         </div>
 
         <Card className="border-none shadow-xl">
           <CardHeader>
             <CardTitle>Welcome back</CardTitle>
-            <CardDescription>Enter your email and password to access your account</CardDescription>
+            <CardDescription>Select your role and enter credentials</CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              <div className="space-y-3">
+                <Label>Login as</Label>
+                <RadioGroup 
+                  defaultValue="user" 
+                  className="flex gap-4" 
+                  value={role}
+                  onValueChange={(val) => setRole(val as 'user' | 'agent')}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="user" id="user" />
+                    <Label htmlFor="user" className="cursor-pointer font-normal">Customer</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="agent" id="agent" />
+                    <Label htmlFor="agent" className="cursor-pointer font-normal">Support Agent</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email address</Label>
                 <Input 
@@ -91,7 +119,6 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Link href="#" className="text-xs text-primary hover:underline">Forgot password?</Link>
                 </div>
                 <Input 
                   id="password" 

@@ -24,11 +24,11 @@ import {
   Send, 
   CheckCircle2, 
   Clock, 
-  User, 
   ShieldAlert,
   MessageSquare,
   Loader2,
-  Sparkles
+  Sparkles,
+  AlertCircle
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -139,7 +139,7 @@ export default function TicketDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <Loader2 className="w-10 h-10 animate-spin text-primary" />
-        <p className="text-muted-foreground">Loading ticket conversation...</p>
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -171,71 +171,54 @@ export default function TicketDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant={getPriorityColor(ticket.priority)} className="px-3 py-1">
-            {ticket.priority} Priority
-          </Badge>
-          <Badge variant="secondary" className="px-3 py-1">
-            {ticket.status}
-          </Badge>
+          <Badge variant={getPriorityColor(ticket.priority)}>{ticket.priority} Priority</Badge>
+          <Badge variant="secondary">{ticket.status}</Badge>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Ticket Info */}
         <div className="space-y-6">
           <Card className="border-none shadow-sm">
             <CardHeader>
               <CardTitle>Request Details</CardTitle>
-              <CardDescription>Initial information provided</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Category</Label>
+                <span className="text-xs text-muted-foreground uppercase">Category</span>
                 <p className="font-medium">{ticket.issueCategory}</p>
               </div>
               <Separator />
               <div>
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Submitted By</Label>
-                <p className="font-medium">{ticket.userName}</p>
-                <p className="text-xs text-muted-foreground">{ticket.userEmail}</p>
+                <span className="text-xs text-muted-foreground uppercase">Submitted By</span>
+                <p className="font-medium truncate">{ticket.userEmail}</p>
               </div>
               <Separator />
               <div>
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Description</Label>
-                <p className="text-sm leading-relaxed mt-1">{ticket.description}</p>
+                <span className="text-xs text-muted-foreground uppercase">Description</span>
+                <p className="text-sm mt-1">{ticket.description}</p>
               </div>
               {ticket.summary && (
                 <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
                   <div className="flex items-center gap-2 text-primary mb-2">
                     <Sparkles className="w-4 h-4" />
-                    <span className="text-xs font-bold uppercase tracking-wider">AI Summary</span>
+                    <span className="text-xs font-bold">AI Summary</span>
                   </div>
                   <p className="text-sm italic">{ticket.summary}</p>
                 </div>
               )}
             </CardContent>
-            {user?.role === 'admin' && (
+            {user?.role === 'agent' && (
               <CardFooter className="flex flex-col gap-2 pt-0">
-                <p className="text-xs text-muted-foreground mb-2 w-full">Agent Actions</p>
-                <div className="grid grid-cols-2 gap-2 w-full">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => updateStatus('In Progress')}
-                    disabled={ticket.status === 'In Progress'}
-                  >
-                    <Clock className="w-4 h-4 mr-2" />
-                    In Progress
+                <p className="text-xs text-muted-foreground mb-2 w-full">Update Status</p>
+                <div className="grid grid-cols-1 gap-2 w-full">
+                  <Button variant="outline" size="sm" onClick={() => updateStatus('Open')} disabled={ticket.status === 'Open'}>
+                    <AlertCircle className="w-4 h-4 mr-2" /> Open
                   </Button>
-                  <Button 
-                    variant="default" 
-                    size="sm"
-                    className="bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => updateStatus('Resolved')}
-                    disabled={ticket.status === 'Resolved'}
-                  >
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Resolve
+                  <Button variant="outline" size="sm" onClick={() => updateStatus('In Progress')} disabled={ticket.status === 'In Progress'}>
+                    <Clock className="w-4 h-4 mr-2" /> In Progress
+                  </Button>
+                  <Button className="bg-emerald-600 hover:bg-emerald-700" size="sm" onClick={() => updateStatus('Resolved')} disabled={ticket.status === 'Resolved'}>
+                    <CheckCircle2 className="w-4 h-4 mr-2" /> Resolve
                   </Button>
                 </div>
               </CardFooter>
@@ -243,7 +226,6 @@ export default function TicketDetailPage() {
           </Card>
         </div>
 
-        {/* Right Column: Chat Interface */}
         <div className="lg:col-span-2 h-[70vh] flex flex-col">
           <Card className="border-none shadow-sm flex-1 flex flex-col overflow-hidden">
             <CardHeader className="border-b py-4">
@@ -254,7 +236,7 @@ export default function TicketDetailPage() {
                 </div>
                 {isMounted && (
                   <span className="text-xs text-muted-foreground">
-                    Last updated {formatDistanceToNow(new Date(ticket.updatedAt))} ago
+                    Last activity {formatDistanceToNow(new Date(ticket.updatedAt))} ago
                   </span>
                 )}
               </div>
@@ -268,8 +250,7 @@ export default function TicketDetailPage() {
                     </div>
                   ) : messages.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
-                      <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                      <p>No messages yet. Start the conversation!</p>
+                      <p>No messages yet.</p>
                     </div>
                   ) : (
                     messages.map((msg) => (
@@ -282,13 +263,13 @@ export default function TicketDetailPage() {
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <span className="text-xs font-semibold">{msg.senderName}</span>
-                          {msg.senderRole === 'admin' && (
-                            <Badge variant="outline" className="text-[10px] h-4 px-1 bg-primary/5 text-primary border-primary/20">AGENT</Badge>
+                          {msg.senderRole === 'agent' && (
+                            <Badge variant="outline" className="text-[10px] h-4 px-1">AGENT</Badge>
                           )}
                         </div>
                         <div 
                           className={cn(
-                            "rounded-2xl px-4 py-2 text-sm shadow-sm",
+                            "rounded-2xl px-4 py-2 text-sm",
                             msg.senderId === user?.uid 
                               ? "bg-primary text-primary-foreground rounded-tr-none" 
                               : "bg-muted rounded-tl-none"
@@ -313,7 +294,7 @@ export default function TicketDetailPage() {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   disabled={ticket.status === 'Resolved'}
-                  className="flex-1 bg-muted/50 border-none focus-visible:ring-1"
+                  className="flex-1 bg-muted/50 border-none"
                 />
                 <Button 
                   type="submit" 
@@ -329,8 +310,4 @@ export default function TicketDetailPage() {
       </div>
     </div>
   );
-}
-
-function Label({ className, children }: { className?: string, children: React.ReactNode }) {
-  return <span className={cn("block font-semibold mb-1", className)}>{children}</span>;
 }

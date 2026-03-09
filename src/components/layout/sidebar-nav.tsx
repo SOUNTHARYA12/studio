@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link";
@@ -43,14 +42,13 @@ export function SidebarNav() {
   };
 
   const navItems = [
-    { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "My Tickets", href: "/tickets", icon: TicketIcon },
-    { name: "Create Ticket", href: "/tickets/new", icon: PlusCircle },
+    { name: "New Ticket", href: "/tickets/new", icon: PlusCircle },
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
   ];
 
-  // Add agent dashboard for admin/agent users
-  if (user?.role === 'admin') {
+  if (user?.role === 'agent') {
     navItems.splice(1, 0, { name: "Agent Dashboard", href: "/dashboard/agent", icon: UserCog });
   }
 
@@ -99,7 +97,7 @@ export function SidebarNav() {
               </Avatar>
               <div className="flex flex-col overflow-hidden">
                 <span className="text-sm font-semibold truncate">{user.displayName || 'User'}</span>
-                <span className="text-xs text-muted-foreground truncate">{user.email}</span>
+                <span className="text-xs text-muted-foreground truncate uppercase">{user.role}</span>
               </div>
             </div>
           )}

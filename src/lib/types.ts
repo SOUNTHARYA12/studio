@@ -20,7 +20,7 @@ export interface Message {
   id: string;
   senderId: string;
   senderName: string;
-  senderRole: 'user' | 'admin';
+  senderRole: 'user' | 'agent';
   message: string;
   timestamp: string;
 }
@@ -29,5 +29,5 @@ export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
-  role: 'user' | 'admin';
+  role: 'user' | 'agent';
 }

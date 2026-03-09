@@ -29,7 +29,8 @@ import {
   Trash2,
   ExternalLink,
   MessageSquare,
-  Loader2
+  Loader2,
+  AlertCircle
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
@@ -55,7 +56,7 @@ export default function TicketManagementPage() {
   const ticketsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     const ticketsRef = collection(db, 'tickets');
-    if (user.role === 'admin') {
+    if (user.role === 'agent') {
       return ticketsRef;
     }
     return query(ticketsRef, where('userId', '==', user.uid));
@@ -63,13 +64,14 @@ export default function TicketManagementPage() {
 
   const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
-  const sortedTickets = useMemo(() => {
-    return [...rawTickets].sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
-  }, [rawTickets]);
+  const filteredTickets = useMemo(() => {
+    return rawTickets
+      .filter(t => 
+        t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [rawTickets, searchTerm]);
 
   const handleStatusUpdate = (ticketId: string, status: TicketStatus) => {
     if (!db) return;
@@ -106,18 +108,11 @@ export default function TicketManagementPage() {
     }
   };
 
-  const filteredTickets = useMemo(() => {
-    return sortedTickets.filter(t => 
-      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (t.summary && t.summary.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [sortedTickets, searchTerm]);
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Resolved': return <CheckCircle2 className="w-3 h-3 mr-1" />;
       case 'In Progress': return <Clock className="w-3 h-3 mr-1" />;
+      case 'Open': return <AlertCircle className="w-3 h-3 mr-1" />;
       default: return null;
     }
   };
@@ -135,7 +130,7 @@ export default function TicketManagementPage() {
       <div className="flex justify-between items-end">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Ticket Management</h1>
-          <p className="text-muted-foreground">Review and track your support inquiries</p>
+          <p className="text-muted-foreground">{user?.role === 'agent' ? "Reviewing all platform inquiries" : "Review and track your support inquiries"}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -147,9 +142,6 @@ export default function TicketManagementPage() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Button variant="outline" size="icon">
-            <Filter className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 
@@ -159,7 +151,7 @@ export default function TicketManagementPage() {
             <TableRow>
               <TableHead className="w-[100px]">ID</TableHead>
               <TableHead>Category</TableHead>
-              <TableHead className="max-w-[300px]">Description</TableHead>
+              <TableHead>Description</TableHead>
               <TableHead>Priority</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Date</TableHead>
@@ -172,34 +164,24 @@ export default function TicketManagementPage() {
                 <TableCell colSpan={7} className="h-32 text-center">
                   <div className="flex items-center justify-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                    <span>Loading tickets...</span>
+                    <span>Loading...</span>
                   </div>
                 </TableCell>
               </TableRow>
             ) : filteredTickets.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
-                  No tickets found matching your criteria.
+                  No tickets found.
                 </TableCell>
               </TableRow>
             ) : (
               filteredTickets.map((ticket) => (
-                <TableRow key={ticket.id} className="group">
+                <TableRow key={ticket.id}>
                   <TableCell className="font-mono text-xs text-muted-foreground">
-                    #{ticket.id?.slice(0, 6) || "..."}
+                    #{ticket.id?.slice(0, 6)}
                   </TableCell>
                   <TableCell className="font-medium">{ticket.issueCategory}</TableCell>
-                  <TableCell className="max-w-[300px]">
-                    <Link href={`/tickets/${ticket.id}`} className="flex flex-col gap-1 hover:opacity-80 transition-opacity">
-                      <p className="text-sm truncate font-medium">{ticket.summary || ticket.description.slice(0, 100)}</p>
-                      {ticket.summary && (
-                        <span className="text-xs text-primary flex items-center gap-1">
-                          <MessageSquare className="w-3 h-3" />
-                          AI Summary available
-                        </span>
-                      )}
-                    </Link>
-                  </TableCell>
+                  <TableCell className="max-w-[200px] truncate">{ticket.description}</TableCell>
                   <TableCell>
                     <Badge variant={getPriorityVariant(ticket.priority)}>{ticket.priority}</Badge>
                   </TableCell>
@@ -219,33 +201,24 @@ export default function TicketManagementPage() {
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-[160px]">
+                      <DropdownMenuContent align="end">
                         <DropdownMenuItem asChild>
                           <Link href={`/tickets/${ticket.id}`} className="flex items-center gap-2">
                             <ExternalLink className="w-4 h-4" /> View Details
                           </Link>
                         </DropdownMenuItem>
-                        {user?.role === 'admin' && (
+                        {user?.role === 'agent' && (
                           <>
-                            <DropdownMenuItem 
-                              className="flex items-center gap-2"
-                              onClick={() => handleStatusUpdate(ticket.id!, "In Progress")}
-                            >
-                              <Clock className="w-4 h-4" /> Mark Progress
+                            <DropdownMenuItem onClick={() => handleStatusUpdate(ticket.id!, "In Progress")}>
+                              <Clock className="w-4 h-4 mr-2" /> Mark Progress
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              className="flex items-center gap-2 text-emerald-500 focus:text-emerald-500"
-                              onClick={() => handleStatusUpdate(ticket.id!, "Resolved")}
-                            >
-                              <CheckCircle2 className="w-4 h-4" /> Mark Resolved
+                            <DropdownMenuItem onClick={() => handleStatusUpdate(ticket.id!, "Resolved")}>
+                              <CheckCircle2 className="w-4 h-4 mr-2" /> Mark Resolved
                             </DropdownMenuItem>
                           </>
                         )}
-                        <DropdownMenuItem 
-                          className="flex items-center gap-2 text-destructive focus:text-destructive"
-                          onClick={() => handleDelete(ticket.id!)}
-                        >
-                          <Trash2 className="w-4 h-4" /> Delete Ticket
+                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(ticket.id!)}>
+                          <Trash2 className="w-4 h-4 mr-2" /> Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

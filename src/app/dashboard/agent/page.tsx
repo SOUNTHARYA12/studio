@@ -1,8 +1,8 @@
-
 "use client"
 
 import { useMemo, useState, useEffect } from "react";
-import { collection, query, orderBy, doc, updateDoc } from "firebase/firestore";
+import { collection, query, doc, updateDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Ticket, TicketStatus } from "@/lib/types";
@@ -18,62 +18,68 @@ import {
   Tag, 
   Calendar,
   AlertCircle,
-  Loader2,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  RotateCcw
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 
 export default function AgentDashboardPage() {
   const { user } = useStore();
   const db = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-  }, []);
+    // Role protection
+    if (user && user.role !== 'agent') {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
 
   const ticketsQuery = useMemoFirebase(() => {
     if (!db) return null;
-    return query(collection(db, 'tickets'), orderBy('createdAt', 'desc'));
+    return collection(db, 'tickets');
   }, [db]);
 
   const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
   const filteredTickets = useMemo(() => {
-    return rawTickets.filter(t => 
-      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.userEmail.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return rawTickets
+      .filter(t => 
+        t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.userEmail.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [rawTickets, searchTerm]);
 
-  const handleResolve = (ticketId: string) => {
+  const updateStatus = (ticketId: string, status: TicketStatus) => {
     if (!db) return;
     const ticketRef = doc(db, "tickets", ticketId);
     
     updateDoc(ticketRef, { 
-      status: 'Resolved' as TicketStatus, 
+      status, 
       updatedAt: new Date().toISOString() 
     })
       .then(() => {
         toast({
-          title: "Ticket Resolved",
-          description: "Status updated successfully.",
+          title: "Status Updated",
+          description: `Ticket is now marked as ${status}.`,
         });
       })
       .catch(async (error) => {
         const permissionError = new FirestorePermissionError({
           path: ticketRef.path,
           operation: 'update',
-          requestResourceData: { status: 'Resolved' },
+          requestResourceData: { status },
         });
         errorEmitter.emit('permission-error', permissionError);
       });
@@ -95,17 +101,18 @@ export default function AgentDashboardPage() {
     }
   };
 
-  // Security check
-  if (user && user.role !== 'admin') {
+  if (!isMounted || !user) return null;
+
+  if (user.role !== 'agent') {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <ShieldAlert className="w-16 h-16 text-destructive" />
         <h2 className="text-2xl font-bold">Access Denied</h2>
         <p className="text-muted-foreground text-center max-w-md">
-          This dashboard is reserved for support agents and administrators only.
+          This dashboard is reserved for support agents only.
         </p>
         <Button asChild>
-          <Link href="/dashboard">Return to Dashboard</Link>
+          <Link href="/dashboard">Return to My Dashboard</Link>
         </Button>
       </div>
     );
@@ -116,12 +123,12 @@ export default function AgentDashboardPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Agent Command Center</h1>
-          <p className="text-muted-foreground">Manage and resolve global support requests</p>
+          <p className="text-muted-foreground">Monitor global support activity and update ticket statuses</p>
         </div>
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
-            placeholder="Search by email, category, or issue..." 
+            placeholder="Search tickets..." 
             className="pl-10" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -132,16 +139,13 @@ export default function AgentDashboardPage() {
       {isLoading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <Card key={i} className="animate-pulse">
-              <div className="h-48 bg-muted rounded-lg" />
-            </Card>
+            <Card key={i} className="animate-pulse h-64 bg-muted/50" />
           ))}
         </div>
       ) : filteredTickets.length === 0 ? (
         <div className="text-center py-20 bg-muted/20 rounded-2xl border-2 border-dashed">
           <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
           <p className="text-lg font-medium">No tickets found</p>
-          <p className="text-sm text-muted-foreground">Adjust your filters or wait for new requests.</p>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -149,7 +153,7 @@ export default function AgentDashboardPage() {
             <Card key={ticket.id} className="group border-none shadow-sm hover:shadow-md transition-all flex flex-col">
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start gap-2">
-                  <Badge variant={getPriorityColor(ticket.priority)} className="mb-2">
+                  <Badge variant={getPriorityColor(ticket.priority)}>
                     {ticket.priority}
                   </Badge>
                   <div className="flex items-center gap-1">
@@ -157,43 +161,59 @@ export default function AgentDashboardPage() {
                     <span className="text-xs font-medium uppercase">{ticket.status}</span>
                   </div>
                 </div>
-                <CardTitle className="text-lg line-clamp-2 min-h-[3.5rem] leading-tight group-hover:text-primary transition-colors">
+                <CardTitle className="text-lg line-clamp-2 min-h-[3rem] mt-2">
                   {ticket.description}
                 </CardTitle>
-                <CardDescription className="flex items-center gap-2 mt-2">
+                <CardDescription className="flex items-center gap-2">
                   <Tag className="w-3.5 h-3.5" />
                   {ticket.issueCategory}
                 </CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 space-y-3">
+              <CardContent className="flex-1 space-y-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Mail className="w-3.5 h-3.5" />
-                  <span className="truncate">{ticket.userEmail}</span>
+                  <span className="truncate">User ID: {ticket.userId}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="w-3.5 h-3.5" />
-                  <span>{isMounted && ticket.createdAt ? format(new Date(ticket.createdAt), "MMM d, yyyy") : "..."}</span>
+                  <span>{format(new Date(ticket.createdAt), "MMM d, yyyy")}</span>
                 </div>
               </CardContent>
-              <CardFooter className="pt-4 border-t flex gap-2">
+              <CardFooter className="pt-4 border-t flex flex-col gap-3">
+                <div className="flex gap-2 w-full">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => updateStatus(ticket.id!, 'Open')}
+                    disabled={ticket.status === 'Open'}
+                  >
+                    Open
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => updateStatus(ticket.id!, 'In Progress')}
+                    disabled={ticket.status === 'In Progress'}
+                  >
+                    In Progress
+                  </Button>
+                </div>
                 <Button 
-                  className="flex-1" 
-                  variant="outline" 
-                  asChild
+                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  onClick={() => updateStatus(ticket.id!, 'Resolved')}
+                  disabled={ticket.status === 'Resolved'}
                 >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Mark Resolved
+                </Button>
+                <Button variant="ghost" className="w-full h-8 text-xs" asChild>
                   <Link href={`/tickets/${ticket.id}`}>
-                    Details
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    Open Conversation
+                    <ArrowRight className="w-3 h-3 ml-2" />
                   </Link>
                 </Button>
-                {ticket.status !== 'Resolved' && (
-                  <Button 
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => handleResolve(ticket.id!)}
-                  >
-                    Resolve
-                  </Button>
-                )}
               </CardFooter>
             </Card>
           ))}

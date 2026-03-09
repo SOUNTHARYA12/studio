@@ -27,7 +27,6 @@ export default function DashboardLayout({
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         try {
-          // Fetch the full profile including the role
           const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
           const userData = userDoc.exists() ? userDoc.data() : { role: 'user' };
           
@@ -35,11 +34,10 @@ export default function DashboardLayout({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             displayName: firebaseUser.displayName || (userData as any).displayName || 'User',
-            role: (userData as any).role as 'user' | 'admin',
+            role: (userData as any).role as 'user' | 'agent',
           });
         } catch (error) {
           console.error("Error fetching user profile:", error);
-          // Fallback to basic auth info if firestore fetch fails
           setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
@@ -51,7 +49,6 @@ export default function DashboardLayout({
         setUser(null);
         router.push("/login");
       }
-      // Only stop checking once we have attempted to load the profile
       setIsAuthChecking(false);
     });
 
