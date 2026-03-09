@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { 
   Ticket as TicketIcon, 
@@ -9,29 +8,35 @@ import {
   Clock, 
   AlertCircle,
   TrendingUp,
-  History
+  History,
+  Loader2
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { getTicketsAction } from "@/app/actions/tickets";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { collection, query, where, orderBy } from "firebase/firestore";
+import { useFirestore, useCollection } from "@/firebase";
+import { Ticket } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 export default function DashboardPage() {
-  const { user, tickets, setTickets } = useStore();
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useStore();
+  const db = useFirestore();
 
-  useEffect(() => {
-    if (user) {
-      getTicketsAction(user.uid, user.role === 'admin').then(fetchedTickets => {
-        setTickets(fetchedTickets);
-        setIsLoading(false);
-      });
+  const ticketsQuery = useMemo(() => {
+    if (!db || !user) return null;
+    const ticketsRef = collection(db, 'tickets');
+    if (user.role === 'admin') {
+      return query(ticketsRef, orderBy('createdAt', 'desc'));
     }
-  }, [user, setTickets]);
+    return query(ticketsRef, where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+  }, [db, user]);
+
+  const { data: tickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
   const totalTickets = tickets.length;
   const resolvedTickets = tickets.filter(t => t.status === 'Resolved').length;
@@ -49,9 +54,17 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Support Overview</h1>
-        <p className="text-muted-foreground">Monitor and manage your support activity</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Support Overview</h1>
+          <p className="text-muted-foreground">Monitor and manage your support activity</p>
+        </div>
+        <Button asChild>
+          <Link href="/tickets/new">
+            <TicketIcon className="w-4 h-4 mr-2" />
+            New Ticket
+          </Link>
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -114,9 +127,9 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-4">
                 {tickets.slice(0, 5).map((ticket) => (
-                  <Link key={ticket.id} href={`/tickets?id=${ticket.id}`}>
+                  <Link key={ticket.id} href={`/tickets`}>
                     <div className="group relative flex items-center justify-between p-4 rounded-xl border hover:bg-muted/30 transition-all cursor-pointer">
-                      <div className="flex gap-4">
+                      <div className="flex gap-4 overflow-hidden">
                         <div className={cn(
                           "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
                           ticket.status === 'Resolved' ? "bg-emerald-500/10 text-emerald-500" :
@@ -124,22 +137,22 @@ export default function DashboardPage() {
                         )}>
                           <TicketIcon className="w-5 h-5" />
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm line-clamp-1 group-hover:text-primary transition-colors">
-                            {ticket.description.slice(0, 60)}...
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+                            {ticket.description}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(ticket.createdAt))} ago
+                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                              {ticket.createdAt ? formatDistanceToNow(new Date(ticket.createdAt)) : "Some time"} ago
                             </span>
                             <span className="text-xs text-muted-foreground">•</span>
-                            <span className="text-xs font-medium text-primary">{ticket.issueCategory}</span>
+                            <span className="text-xs font-medium text-primary truncate">{ticket.issueCategory}</span>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant={getPriorityColor(ticket.priority)}>{ticket.priority}</Badge>
-                        <Badge variant="secondary">{ticket.status}</Badge>
+                      <div className="flex items-center gap-3 shrink-0 ml-4">
+                        <Badge variant={getPriorityColor(ticket.priority)} className="hidden sm:inline-flex">{ticket.priority}</Badge>
+                        <Badge variant="secondary" className="hidden sm:inline-flex">{ticket.status}</Badge>
                       </div>
                     </div>
                   </Link>

@@ -1,9 +1,7 @@
-
 "use client"
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useStore } from "@/lib/store";
-import { getTicketsAction } from "@/app/actions/tickets";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   Bar, 
@@ -20,26 +18,26 @@ import {
   CartesianGrid,
   Legend
 } from "recharts";
-import { 
-  ChartContainer, 
-  ChartTooltip, 
-  ChartTooltipContent 
-} from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, startOfDay, eachDayOfInterval, subDays } from "date-fns";
+import { format, eachDayOfInterval, subDays } from "date-fns";
+import { collection, query, where, orderBy } from "firebase/firestore";
+import { useFirestore, useCollection } from "@/firebase";
+import { Ticket } from "@/lib/types";
 
 export default function AnalyticsPage() {
-  const { user, tickets, setTickets } = useStore();
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useStore();
+  const db = useFirestore();
 
-  useEffect(() => {
-    if (user) {
-      getTicketsAction(user.uid, user.role === 'admin').then(fetchedTickets => {
-        setTickets(fetchedTickets);
-        setIsLoading(false);
-      });
+  const ticketsQuery = useMemo(() => {
+    if (!db || !user) return null;
+    const ticketsRef = collection(db, 'tickets');
+    if (user.role === 'admin') {
+      return query(ticketsRef, orderBy('createdAt', 'desc'));
     }
-  }, [user, setTickets]);
+    return query(ticketsRef, where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+  }, [db, user]);
+
+  const { data: tickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
   const categoryData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -65,9 +63,13 @@ export default function AnalyticsPage() {
 
     return last7Days.map(date => {
       const dateStr = format(date, 'MMM d');
-      const count = tickets.filter(t => 
-        format(new Date(t.createdAt), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
-      ).length;
+      const count = tickets.filter(t => {
+        try {
+          return format(new Date(t.createdAt), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
+        } catch (e) {
+          return false;
+        }
+      }).length;
       return { date: dateStr, count };
     });
   }, [tickets]);
@@ -176,14 +178,16 @@ export default function AnalyticsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="bg-white/10 p-4 rounded-lg">
-              <p className="text-sm font-medium">Most Frequent Category</p>
-              <p className="text-2xl font-bold">Technical Support</p>
-              <p className="text-xs mt-1 text-primary-foreground/70">Increase FAQ documentation for this area.</p>
-            </div>
-            <div className="bg-white/10 p-4 rounded-lg">
               <p className="text-sm font-medium">Resolution Efficiency</p>
               <p className="text-2xl font-bold">+14%</p>
               <p className="text-xs mt-1 text-primary-foreground/70">Since implementing AI auto-summaries.</p>
+            </div>
+            <div className="bg-white/10 p-4 rounded-lg">
+              <p className="text-sm font-medium">Resolution Rate</p>
+              <p className="text-2xl font-bold">
+                {tickets.length > 0 ? Math.round((tickets.filter(t => t.status === 'Resolved').length / tickets.length) * 100) : 0}%
+              </p>
+              <p className="text-xs mt-1 text-primary-foreground/70">Average across all current tickets.</p>
             </div>
           </CardContent>
         </Card>
