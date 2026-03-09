@@ -26,30 +26,45 @@ export default function DashboardLayout({
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        if (!user) {
+        try {
+          // Fetch the full profile including the role
           const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
           const userData = userDoc.exists() ? userDoc.data() : { role: 'user' };
           
           setUser({
             uid: firebaseUser.uid,
             email: firebaseUser.email,
+            displayName: firebaseUser.displayName || (userData as any).displayName || 'User',
+            role: (userData as any).role as 'user' | 'admin',
+          });
+        } catch (error) {
+          console.error("Error fetching user profile:", error);
+          // Fallback to basic auth info if firestore fetch fails
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
             displayName: firebaseUser.displayName,
-            role: userData.role as 'user' | 'admin',
+            role: 'user',
           });
         }
       } else {
+        setUser(null);
         router.push("/login");
       }
+      // Only stop checking once we have attempted to load the profile
       setIsAuthChecking(false);
     });
 
     return () => unsubscribe();
-  }, [user, setUser, router, auth, db]);
+  }, [setUser, router, auth, db]);
 
   if (isAuthChecking) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-10 h-10 animate-spin text-primary" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 animate-spin text-primary" />
+          <p className="text-sm font-medium text-muted-foreground">Verifying session...</p>
+        </div>
       </div>
     );
   }
