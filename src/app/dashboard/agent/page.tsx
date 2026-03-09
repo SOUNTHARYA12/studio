@@ -1,0 +1,204 @@
+
+"use client"
+
+import { useMemo, useState, useEffect } from "react";
+import { collection, query, orderBy, doc, updateDoc } from "firebase/firestore";
+import { useStore } from "@/lib/store";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { Ticket, TicketStatus } from "@/lib/types";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { 
+  CheckCircle2, 
+  Clock, 
+  Search, 
+  Mail, 
+  Tag, 
+  Calendar,
+  AlertCircle,
+  Loader2,
+  ShieldAlert,
+  ArrowRight
+} from "lucide-react";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+export default function AgentDashboardPage() {
+  const { user } = useStore();
+  const db = useFirestore();
+  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const ticketsQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, 'tickets'), orderBy('createdAt', 'desc'));
+  }, [db]);
+
+  const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
+
+  const filteredTickets = useMemo(() => {
+    return rawTickets.filter(t => 
+      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.userEmail.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [rawTickets, searchTerm]);
+
+  const handleResolve = (ticketId: string) => {
+    if (!db) return;
+    const ticketRef = doc(db, "tickets", ticketId);
+    
+    updateDoc(ticketRef, { 
+      status: 'Resolved' as TicketStatus, 
+      updatedAt: new Date().toISOString() 
+    })
+      .then(() => {
+        toast({
+          title: "Ticket Resolved",
+          description: "Status updated successfully.",
+        });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: ticketRef.path,
+          operation: 'update',
+          requestResourceData: { status: 'Resolved' },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'High': return 'destructive';
+      case 'Medium': return 'secondary';
+      default: return 'outline';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Resolved': return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
+      case 'In Progress': return <Clock className="w-4 h-4 text-amber-500" />;
+      default: return <AlertCircle className="w-4 h-4 text-primary" />;
+    }
+  };
+
+  // Security check
+  if (user && user.role !== 'admin') {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
+        <ShieldAlert className="w-16 h-16 text-destructive" />
+        <h2 className="text-2xl font-bold">Access Denied</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          This dashboard is reserved for support agents and administrators only.
+        </p>
+        <Button asChild>
+          <Link href="/dashboard">Return to Dashboard</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">Agent Command Center</h1>
+          <p className="text-muted-foreground">Manage and resolve global support requests</p>
+        </div>
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input 
+            placeholder="Search by email, category, or issue..." 
+            className="pl-10" 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <Card key={i} className="animate-pulse">
+              <div className="h-48 bg-muted rounded-lg" />
+            </Card>
+          ))}
+        </div>
+      ) : filteredTickets.length === 0 ? (
+        <div className="text-center py-20 bg-muted/20 rounded-2xl border-2 border-dashed">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <p className="text-lg font-medium">No tickets found</p>
+          <p className="text-sm text-muted-foreground">Adjust your filters or wait for new requests.</p>
+        </div>
+      ) : (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredTickets.map((ticket) => (
+            <Card key={ticket.id} className="group border-none shadow-sm hover:shadow-md transition-all flex flex-col">
+              <CardHeader className="pb-3">
+                <div className="flex justify-between items-start gap-2">
+                  <Badge variant={getPriorityColor(ticket.priority)} className="mb-2">
+                    {ticket.priority}
+                  </Badge>
+                  <div className="flex items-center gap-1">
+                    {getStatusIcon(ticket.status)}
+                    <span className="text-xs font-medium uppercase">{ticket.status}</span>
+                  </div>
+                </div>
+                <CardTitle className="text-lg line-clamp-2 min-h-[3.5rem] leading-tight group-hover:text-primary transition-colors">
+                  {ticket.description}
+                </CardTitle>
+                <CardDescription className="flex items-center gap-2 mt-2">
+                  <Tag className="w-3.5 h-3.5" />
+                  {ticket.issueCategory}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 space-y-3">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Mail className="w-3.5 h-3.5" />
+                  <span className="truncate">{ticket.userEmail}</span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>{isMounted && ticket.createdAt ? format(new Date(ticket.createdAt), "MMM d, yyyy") : "..."}</span>
+                </div>
+              </CardContent>
+              <CardFooter className="pt-4 border-t flex gap-2">
+                <Button 
+                  className="flex-1" 
+                  variant="outline" 
+                  asChild
+                >
+                  <Link href={`/tickets/${ticket.id}`}>
+                    Details
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Link>
+                </Button>
+                {ticket.status !== 'Resolved' && (
+                  <Button 
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => handleResolve(ticket.id!)}
+                  >
+                    Resolve
+                  </Button>
+                )}
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
