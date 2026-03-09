@@ -139,7 +139,7 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-4">
                 {tickets.slice(0, 5).map((ticket) => (
-                  <Link key={ticket.id} href={`/tickets`}>
+                  <Link key={ticket.id} href={`/tickets/${ticket.id}`}>
                     <div className="group relative flex items-center justify-between p-4 rounded-xl border hover:bg-muted/30 transition-all cursor-pointer">
                       <div className="flex gap-4 overflow-hidden">
                         <div className={cn(

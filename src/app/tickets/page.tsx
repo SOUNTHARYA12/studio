@@ -1,7 +1,6 @@
-
 "use client"
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { collection, query, where, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -36,24 +35,31 @@ import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { TicketStatus, Ticket } from "@/lib/types";
-import { useFirestore, useCollection } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export default function TicketManagementPage() {
   const { user } = useStore();
   const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
+  const [isMounted, setIsMounted] = useState(false);
 
-  const ticketsQuery = useMemo(() => {
-    if (!db || !user) return null;
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const ticketsQuery = useMemoFirebase(() => {
+    if (!db || !user?.uid) return null;
     const ticketsRef = collection(db, 'tickets');
     if (user.role === 'admin') {
       return ticketsRef;
     }
     return query(ticketsRef, where('userId', '==', user.uid));
-  }, [db, user]);
+  }, [db, user?.uid, user?.role]);
 
   const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
@@ -184,7 +190,7 @@ export default function TicketManagementPage() {
                   </TableCell>
                   <TableCell className="font-medium">{ticket.issueCategory}</TableCell>
                   <TableCell className="max-w-[300px]">
-                    <div className="flex flex-col gap-1">
+                    <Link href={`/tickets/${ticket.id}`} className="flex flex-col gap-1 hover:opacity-80 transition-opacity">
                       <p className="text-sm truncate font-medium">{ticket.summary || ticket.description.slice(0, 100)}</p>
                       {ticket.summary && (
                         <span className="text-xs text-primary flex items-center gap-1">
@@ -192,7 +198,7 @@ export default function TicketManagementPage() {
                           AI Summary available
                         </span>
                       )}
-                    </div>
+                    </Link>
                   </TableCell>
                   <TableCell>
                     <Badge variant={getPriorityVariant(ticket.priority)}>{ticket.priority}</Badge>
@@ -204,7 +210,7 @@ export default function TicketManagementPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {ticket.createdAt ? format(new Date(ticket.createdAt), "MMM d, yyyy") : "N/A"}
+                    {isMounted && ticket.createdAt ? format(new Date(ticket.createdAt), "MMM d, yyyy") : "N/A"}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -214,21 +220,27 @@ export default function TicketManagementPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-[160px]">
-                        <DropdownMenuItem className="flex items-center gap-2">
-                          <ExternalLink className="w-4 h-4" /> View Details
+                        <DropdownMenuItem asChild>
+                          <Link href={`/tickets/${ticket.id}`} className="flex items-center gap-2">
+                            <ExternalLink className="w-4 h-4" /> View Details
+                          </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="flex items-center gap-2"
-                          onClick={() => handleStatusUpdate(ticket.id!, "In Progress")}
-                        >
-                          <Clock className="w-4 h-4" /> Mark Progress
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="flex items-center gap-2 text-emerald-500 focus:text-emerald-500"
-                          onClick={() => handleStatusUpdate(ticket.id!, "Resolved")}
-                        >
-                          <CheckCircle2 className="w-4 h-4" /> Mark Resolved
-                        </DropdownMenuItem>
+                        {user?.role === 'admin' && (
+                          <>
+                            <DropdownMenuItem 
+                              className="flex items-center gap-2"
+                              onClick={() => handleStatusUpdate(ticket.id!, "In Progress")}
+                            >
+                              <Clock className="w-4 h-4" /> Mark Progress
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="flex items-center gap-2 text-emerald-500 focus:text-emerald-500"
+                              onClick={() => handleStatusUpdate(ticket.id!, "Resolved")}
+                            >
+                              <CheckCircle2 className="w-4 h-4" /> Mark Resolved
+                            </DropdownMenuItem>
+                          </>
+                        )}
                         <DropdownMenuItem 
                           className="flex items-center gap-2 text-destructive focus:text-destructive"
                           onClick={() => handleDelete(ticket.id!)}
