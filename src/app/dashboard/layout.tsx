@@ -1,15 +1,14 @@
-
 "use client"
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth, db } from "@/lib/firebase-config";
 import { doc, getDoc } from "firebase/firestore";
 import { useStore } from "@/lib/store";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { Loader2 } from "lucide-react";
+import { useAuth, useFirestore } from "@/firebase";
 
 export default function DashboardLayout({
   children,
@@ -19,8 +18,12 @@ export default function DashboardLayout({
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const { user, setUser } = useStore();
   const router = useRouter();
+  const auth = useAuth();
+  const db = useFirestore();
 
   useEffect(() => {
+    if (!auth || !db) return;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         if (!user) {
@@ -41,7 +44,7 @@ export default function DashboardLayout({
     });
 
     return () => unsubscribe();
-  }, [user, setUser, router]);
+  }, [user, setUser, router, auth, db]);
 
   if (isAuthChecking) {
     return (

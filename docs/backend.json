@@ -1,0 +1,52 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Stores user account details and roles.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Ticket": {
+      "title": "Support Ticket",
+      "description": "Represents a customer support request.",
+      "type": "object",
+      "properties": {
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string", "format": "email" },
+        "issueCategory": { 
+          "type": "string", 
+          "enum": ["Technical Support", "Billing Inquiry", "Account Management", "General Inquiry", "Bug Report", "Feature Request"] 
+        },
+        "description": { "type": "string" },
+        "summary": { "type": "string", "description": "AI-generated summary" },
+        "priority": { "type": "string", "enum": ["Low", "Medium", "High"] },
+        "status": { "type": "string", "enum": ["Open", "In Progress", "Resolved"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "userId": { "type": "string" }
+      },
+      "required": ["userName", "userEmail", "description", "priority", "status", "userId"]
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile documents."
+    },
+    "/tickets/{ticketId}": {
+      "schema": "Ticket",
+      "description": "Support ticket documents."
+    }
+  }
+}

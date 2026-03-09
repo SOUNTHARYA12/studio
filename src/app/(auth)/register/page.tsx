@@ -5,7 +5,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth, db } from "@/lib/firebase-config";
 import { doc, setDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +13,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth, useFirestore } from "@/firebase";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -24,8 +24,13 @@ export default function RegisterPage() {
   const { setUser } = useStore();
   const { toast } = useToast();
 
+  const auth = useAuth();
+  const db = useFirestore();
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!auth || !db) return;
+
     setIsLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
