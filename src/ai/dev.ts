@@ -1,1 +1,5 @@
-// Flows will be imported for their side effects in this file.
+import { config } from 'dotenv';
+config();
+
+import '@/ai/flows/automated-ticket-summary.ts';
+import '@/ai/flows/ai-driven-category-suggestion.ts';

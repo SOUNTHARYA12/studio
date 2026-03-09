@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-bg",
+      "description": "Abstract blue background for support platform",
+      "imageUrl": "https://picsum.photos/seed/supportlens-hero/1200/600",
+      "imageHint": "abstract blue"
+    },
+    {
+      "id": "user-avatar",
+      "description": "User profile avatar placeholder",
+      "imageUrl": "https://picsum.photos/seed/user-avatar/100/100",
+      "imageHint": "person profile"
+    }
+  ]
+}
