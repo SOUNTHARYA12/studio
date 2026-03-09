@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link";
@@ -8,7 +7,6 @@ import {
   PlusCircle, 
   Ticket as TicketIcon, 
   BarChart3, 
-  Settings,
   LogOut,
   ShieldCheck
 } from "lucide-react";
@@ -28,7 +26,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
-import { auth } from "@/lib/firebase-config";
+import { useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
 
 const navItems = [
@@ -41,8 +39,10 @@ const navItems = [
 export function SidebarNav() {
   const pathname = usePathname();
   const { user, setUser } = useStore();
+  const auth = useAuth();
 
   const handleLogout = async () => {
+    if (!auth) return;
     await signOut(auth);
     setUser(null);
   };

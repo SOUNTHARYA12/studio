@@ -1,16 +1,18 @@
-
 "use client"
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase-config";
+import { useAuth } from "@/firebase";
 import { Loader2 } from "lucide-react";
 
 export default function Home() {
   const router = useRouter();
+  const auth = useAuth();
 
   useEffect(() => {
+    if (!auth) return;
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         router.push("/dashboard");
@@ -20,7 +22,7 @@ export default function Home() {
     });
 
     return () => unsubscribe();
-  }, [router]);
+  }, [router, auth]);
 
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center gap-4 bg-background">
