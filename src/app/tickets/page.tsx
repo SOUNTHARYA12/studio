@@ -1,7 +1,8 @@
+
 "use client"
 
 import { useState, useMemo } from "react";
-import { collection, query, where, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, query, where, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
@@ -49,12 +50,20 @@ export default function TicketManagementPage() {
     if (!db || !user) return null;
     const ticketsRef = collection(db, 'tickets');
     if (user.role === 'admin') {
-      return query(ticketsRef, orderBy('createdAt', 'desc'));
+      return ticketsRef;
     }
-    return query(ticketsRef, where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    return query(ticketsRef, where('userId', '==', user.uid));
   }, [db, user]);
 
-  const { data: tickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
+  const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
+
+  const sortedTickets = useMemo(() => {
+    return [...rawTickets].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [rawTickets]);
 
   const handleStatusUpdate = (ticketId: string, status: TicketStatus) => {
     if (!db) return;
@@ -92,11 +101,12 @@ export default function TicketManagementPage() {
   };
 
   const filteredTickets = useMemo(() => {
-    return tickets.filter(t => 
+    return sortedTickets.filter(t => 
       t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase())
+      t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (t.summary && t.summary.toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  }, [tickets, searchTerm]);
+  }, [sortedTickets, searchTerm]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

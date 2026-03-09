@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo } from "react";
@@ -18,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Ticket } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -31,12 +32,20 @@ export default function DashboardPage() {
     if (!db || !user?.uid) return null;
     const ticketsRef = collection(db, 'tickets');
     if (user.role === 'admin') {
-      return query(ticketsRef, orderBy('createdAt', 'desc'));
+      return ticketsRef;
     }
-    return query(ticketsRef, where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    return query(ticketsRef, where('userId', '==', user.uid));
   }, [db, user?.uid, user?.role]);
 
-  const { data: tickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
+  const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
+
+  const tickets = useMemo(() => {
+    return [...rawTickets].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [rawTickets]);
 
   const totalTickets = tickets.length;
   const resolvedTickets = tickets.filter(t => t.status === 'Resolved').length;

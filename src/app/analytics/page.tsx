@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo } from "react";
@@ -20,7 +21,7 @@ import {
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format, eachDayOfInterval, subDays } from "date-fns";
-import { collection, query, where, orderBy } from "firebase/firestore";
+import { collection, query, where } from "firebase/firestore";
 import { useFirestore, useCollection } from "@/firebase";
 import { Ticket } from "@/lib/types";
 
@@ -32,12 +33,20 @@ export default function AnalyticsPage() {
     if (!db || !user) return null;
     const ticketsRef = collection(db, 'tickets');
     if (user.role === 'admin') {
-      return query(ticketsRef, orderBy('createdAt', 'desc'));
+      return ticketsRef;
     }
-    return query(ticketsRef, where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    return query(ticketsRef, where('userId', '==', user.uid));
   }, [db, user]);
 
-  const { data: tickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
+  const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
+
+  const tickets = useMemo(() => {
+    return [...rawTickets].sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    });
+  }, [rawTickets]);
 
   const categoryData = useMemo(() => {
     const counts: Record<string, number> = {};
