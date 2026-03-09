@@ -1,13 +1,11 @@
-
 "use client"
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useStore } from "@/lib/store";
-import { createTicketAction } from "@/app/actions/tickets";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { 
@@ -21,6 +19,10 @@ import { TicketCategory, TicketPriority } from "@/lib/types";
 import { Sparkles, Loader2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import { useFirestore } from "@/firebase";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { summarizeTicket } from '@/ai/flows/automated-ticket-summary';
 
 const categories: TicketCategory[] = [
   'Technical Support',
@@ -40,38 +42,55 @@ export default function CreateTicketPage() {
   const { user } = useStore();
   const { toast } = useToast();
   const router = useRouter();
+  const db = useFirestore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !db) return;
 
     setIsSubmitting(true);
     try {
-      const result = await createTicketAction({
+      // Get AI Summary
+      const { summary } = await summarizeTicket({ description });
+
+      const ticketData = {
         userName: user.displayName || "Unknown User",
         userEmail: user.email || "",
         description,
+        summary,
         issueCategory: category,
         priority,
-        userId: user.uid
-      });
+        status: 'Open',
+        userId: user.uid,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
 
-      if (result.success) {
-        toast({
-          title: "Ticket created successfully",
-          description: "Our team will review your request shortly.",
+      const ticketsRef = collection(db, 'tickets');
+      
+      addDoc(ticketsRef, ticketData)
+        .then(() => {
+          toast({
+            title: "Ticket created successfully",
+            description: "Our team will review your request shortly.",
+          });
+          router.push("/tickets");
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: 'tickets',
+            operation: 'create',
+            requestResourceData: ticketData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
-        router.push("/tickets");
-      } else {
-        throw new Error("Failed to create ticket");
-      }
-    } catch (error) {
+
+    } catch (error: any) {
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: error.message || "Something went wrong. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsSubmitting(false);
     }
   };

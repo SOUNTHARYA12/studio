@@ -1,9 +1,8 @@
-
 "use client"
 
-import { useEffect, useState } from "react";
+import { useState, useMemo } from "react";
+import { collection, query, where, orderBy, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { useStore } from "@/lib/store";
-import { getTicketsAction, updateTicketStatusAction, deleteTicketAction } from "@/app/actions/tickets";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { 
   Table, 
@@ -29,50 +28,75 @@ import {
   Clock, 
   Trash2,
   ExternalLink,
-  MessageSquare
+  MessageSquare,
+  Loader2
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { TicketStatus } from "@/lib/types";
+import { TicketStatus, Ticket } from "@/lib/types";
+import { useFirestore, useCollection } from "@/firebase";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function TicketManagementPage() {
-  const { user, tickets, setTickets, updateTicketStatus, deleteTicket } = useStore();
-  const [isLoading, setIsLoading] = useState(true);
+  const { user } = useStore();
+  const db = useFirestore();
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  useEffect(() => {
-    if (user) {
-      getTicketsAction(user.uid, user.role === 'admin').then(fetchedTickets => {
-        setTickets(fetchedTickets);
-        setIsLoading(false);
+  const ticketsQuery = useMemo(() => {
+    if (!db || !user) return null;
+    const ticketsRef = collection(db, 'tickets');
+    if (user.role === 'admin') {
+      return query(ticketsRef, orderBy('createdAt', 'desc'));
+    }
+    return query(ticketsRef, where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+  }, [db, user]);
+
+  const { data: tickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
+
+  const handleStatusUpdate = (ticketId: string, status: TicketStatus) => {
+    if (!db) return;
+    const ticketRef = doc(db, "tickets", ticketId);
+    updateDoc(ticketRef, { status, updatedAt: new Date().toISOString() })
+      .then(() => {
+        toast({ title: "Status updated", description: `Ticket marked as ${status}` });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: ticketRef.path,
+          operation: 'update',
+          requestResourceData: { status },
+        });
+        errorEmitter.emit('permission-error', permissionError);
       });
-    }
-  }, [user, setTickets]);
-
-  const handleStatusUpdate = async (ticketId: string, status: TicketStatus) => {
-    const result = await updateTicketStatusAction(ticketId, status);
-    if (result.success) {
-      updateTicketStatus(ticketId, status);
-      toast({ title: "Status updated", description: `Ticket marked as ${status}` });
-    }
   };
 
-  const handleDelete = async (ticketId: string) => {
+  const handleDelete = (ticketId: string) => {
+    if (!db) return;
     if (confirm("Are you sure you want to delete this ticket?")) {
-      const result = await deleteTicketAction(ticketId);
-      if (result.success) {
-        deleteTicket(ticketId);
-        toast({ title: "Ticket deleted" });
-      }
+      const ticketRef = doc(db, "tickets", ticketId);
+      deleteDoc(ticketRef)
+        .then(() => {
+          toast({ title: "Ticket deleted" });
+        })
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: ticketRef.path,
+            operation: 'delete',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
   };
 
-  const filteredTickets = tickets.filter(t => 
-    t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTickets = useMemo(() => {
+    return tickets.filter(t => 
+      t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [tickets, searchTerm]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -128,11 +152,14 @@ export default function TicketManagementPage() {
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              [1, 2, 3].map(i => (
-                <TableRow key={i}>
-                  <TableCell colSpan={7} className="h-16 animate-pulse bg-muted/20" />
-                </TableRow>
-              ))
+              <TableRow>
+                <TableCell colSpan={7} className="h-32 text-center">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                    <span>Loading tickets...</span>
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : filteredTickets.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
@@ -143,7 +170,7 @@ export default function TicketManagementPage() {
               filteredTickets.map((ticket) => (
                 <TableRow key={ticket.id} className="group">
                   <TableCell className="font-mono text-xs text-muted-foreground">
-                    #{ticket.id.slice(0, 6)}
+                    #{ticket.id?.slice(0, 6) || "..."}
                   </TableCell>
                   <TableCell className="font-medium">{ticket.issueCategory}</TableCell>
                   <TableCell className="max-w-[300px]">
@@ -167,7 +194,7 @@ export default function TicketManagementPage() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {format(new Date(ticket.createdAt), "MMM d, yyyy")}
+                    {ticket.createdAt ? format(new Date(ticket.createdAt), "MMM d, yyyy") : "N/A"}
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -182,19 +209,19 @@ export default function TicketManagementPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="flex items-center gap-2"
-                          onClick={() => handleStatusUpdate(ticket.id, "In Progress")}
+                          onClick={() => handleStatusUpdate(ticket.id!, "In Progress")}
                         >
                           <Clock className="w-4 h-4" /> Mark Progress
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="flex items-center gap-2 text-emerald-500 focus:text-emerald-500"
-                          onClick={() => handleStatusUpdate(ticket.id, "Resolved")}
+                          onClick={() => handleStatusUpdate(ticket.id!, "Resolved")}
                         >
                           <CheckCircle2 className="w-4 h-4" /> Mark Resolved
                         </DropdownMenuItem>
                         <DropdownMenuItem 
                           className="flex items-center gap-2 text-destructive focus:text-destructive"
-                          onClick={() => handleDelete(ticket.id)}
+                          onClick={() => handleDelete(ticket.id!)}
                         >
                           <Trash2 className="w-4 h-4" /> Delete Ticket
                         </DropdownMenuItem>
