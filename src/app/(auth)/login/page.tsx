@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react";
@@ -9,17 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore } from "@/firebase";
-import { UserRole } from "@/lib/types";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("user");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { setUser } = useStore();
@@ -41,7 +39,16 @@ export default function LoginPage() {
       const userDoc = await getDoc(userRef);
       
       if (!userDoc.exists()) {
-        throw new Error("User profile not found. Please register.");
+        // Fallback for older accounts without Firestore profiles
+        const fallbackData = {
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || 'User',
+          role: user.email === "sountharyar.ad23@bitsathy.ac.in" ? 'admin' : 'user',
+        };
+        setUser(fallbackData as any);
+        router.push("/dashboard");
+        return;
       }
 
       const userData = userDoc.data() as any;
@@ -55,9 +62,17 @@ export default function LoginPage() {
 
       router.push("/dashboard");
     } catch (error: any) {
+      let errorMessage = "Invalid email or password.";
+      
+      if (error.code === 'auth/invalid-credential') {
+        errorMessage = "Incorrect credentials. If you haven't created an account yet, please register first.";
+      } else if (error.code === 'auth/user-not-found') {
+        errorMessage = "User not found. Please register for a new account.";
+      }
+
       toast({
         title: "Login failed",
-        description: error.message || "Invalid credentials",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -67,7 +82,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8">
+      <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in duration-500">
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="bg-primary p-3 rounded-2xl">
@@ -90,7 +105,7 @@ export default function LoginPage() {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="name@company.com" 
+                  placeholder="sountharyar.ad23@bitsathy.ac.in" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 

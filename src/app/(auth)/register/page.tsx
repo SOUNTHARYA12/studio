@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react";
@@ -10,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2, Sparkles } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
@@ -37,13 +38,13 @@ export default function RegisterPage() {
 
     setIsLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const user = userCredential.user;
       
       await updateProfile(user, { displayName: name });
       
-      // Determine role based on specific admin email requirement
-      const finalRole: UserRole = email === ADMIN_EMAIL ? "admin" : role;
+      // CRITICAL: Force Admin role if the specific email is used
+      const finalRole: UserRole = email.trim() === ADMIN_EMAIL ? "admin" : role;
 
       const userData: UserProfile = {
         uid: user.uid,
@@ -67,12 +68,24 @@ export default function RegisterPage() {
         });
 
       setUser(userData);
+      
+      toast({
+        title: "Account created",
+        description: finalRole === 'admin' ? "Welcome back, Administrator." : "Registration successful.",
+      });
 
       router.push("/dashboard");
     } catch (error: any) {
+      let errorMessage = "An error occurred during registration.";
+      if (error.code === 'auth/email-already-in-use') {
+        errorMessage = "This email is already registered. Try logging in.";
+      } else if (error.code === 'auth/weak-password') {
+        errorMessage = "Password should be at least 6 characters.";
+      }
+
       toast({
         title: "Registration failed",
-        description: error.message || "An error occurred",
+        description: errorMessage,
         variant: "destructive",
       });
       setIsLoading(false);
@@ -81,7 +94,7 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8">
+      <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <div className="text-center space-y-2">
           <div className="flex justify-center">
             <div className="bg-primary p-3 rounded-2xl">
@@ -99,23 +112,32 @@ export default function RegisterPage() {
           </CardHeader>
           <form onSubmit={handleRegister}>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="role">Register as</Label>
-                <Select value={role} onValueChange={(val) => setRole(val as UserRole)}>
-                  <SelectTrigger id="role">
-                    <SelectValue placeholder="Select a role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">Customer</SelectItem>
-                    <SelectItem value="Billing Agent">Billing Agent</SelectItem>
-                    <SelectItem value="Technical Support Agent">Technical Support Agent</SelectItem>
-                    <SelectItem value="Customer Support Agent">Customer Support Agent</SelectItem>
-                    <SelectItem value="Account Management Agent">Account Management Agent</SelectItem>
-                    <SelectItem value="Developer Agent">Developer Agent</SelectItem>
-                    <SelectItem value="Product Team Agent">Product Team Agent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() ? (
+                <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 flex items-center gap-3">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                  <p className="text-xs font-medium text-primary">
+                    Authorized Administrator Email detected. You will be registered as System Admin.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="role">Register as</Label>
+                  <Select value={role} onValueChange={(val) => setRole(val as UserRole)}>
+                    <SelectTrigger id="role">
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="user">Customer</SelectItem>
+                      <SelectItem value="Billing Agent">Billing Agent</SelectItem>
+                      <SelectItem value="Technical Support Agent">Technical Support Agent</SelectItem>
+                      <SelectItem value="Customer Support Agent">Customer Support Agent</SelectItem>
+                      <SelectItem value="Account Management Agent">Account Management Agent</SelectItem>
+                      <SelectItem value="Developer Agent">Developer Agent</SelectItem>
+                      <SelectItem value="Product Team Agent">Product Team Agent</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="name">Full Name</Label>
@@ -132,7 +154,7 @@ export default function RegisterPage() {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="name@company.com" 
+                  placeholder="sountharyar.ad23@bitsathy.ac.in" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
@@ -143,6 +165,7 @@ export default function RegisterPage() {
                 <Input 
                   id="password" 
                   type="password" 
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
