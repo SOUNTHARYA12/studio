@@ -72,7 +72,6 @@ export default function AgentDashboardPage() {
       if (assignedCategory) {
         filtered = filtered.filter(t => t.issueCategory === assignedCategory);
       } else {
-        // If role doesn't map (though it should), show nothing for safety
         return [];
       }
     } else if (user.role === 'user') {
