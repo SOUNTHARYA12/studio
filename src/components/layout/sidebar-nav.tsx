@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link";
@@ -11,7 +12,8 @@ import {
   ShieldCheck,
   UserCog,
   Settings,
-  Sparkles
+  Sparkles,
+  UserCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -50,6 +52,7 @@ export function SidebarNav() {
     { name: "Vault", href: "/analytics", icon: BarChart3 },
     { name: "Queue", href: "/tickets", icon: TicketIcon },
     { name: "Create", href: "/tickets/new", icon: PlusCircle },
+    { name: "Profile", href: "/dashboard/profile", icon: UserCircle },
   ];
 
   if (user) {
