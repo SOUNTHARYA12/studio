@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2, Sparkles, LogIn } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore } from "@/firebase";
@@ -61,16 +61,14 @@ export default function LoginPage() {
 
       router.push("/dashboard");
     } catch (error: any) {
-      let errorMessage = "Invalid email or password.";
+      let errorMessage = "Access denied. Verify your credentials.";
       
       if (error.code === 'auth/invalid-credential') {
-        errorMessage = "Incorrect credentials. If you haven't created an account yet, please register first.";
-      } else if (error.code === 'auth/user-not-found') {
-        errorMessage = "User not found. Please register for a new account.";
+        errorMessage = "Invalid credentials. Please verify your email and security key.";
       }
 
       toast({
-        title: "Login failed",
+        title: "Login Failure",
         description: errorMessage,
         variant: "destructive",
       });
@@ -80,64 +78,79 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in duration-500">
-        <div className="text-center space-y-2">
+    <div className="min-h-screen flex items-center justify-center bg-background p-6">
+      <div className="w-full max-w-md space-y-10 animate-in fade-in zoom-in duration-700">
+        <div className="text-center space-y-4">
           <div className="flex justify-center">
-            <div className="bg-primary p-3 rounded-2xl">
-              <ShieldCheck className="w-10 h-10 text-primary-foreground" />
+            <div className="bg-primary p-4 rounded-3xl glow-coral">
+              <ShieldCheck className="w-10 h-10 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary">SupportLens</h1>
-          <p className="text-muted-foreground">Sign in to your account</p>
+          <div className="flex flex-col">
+            <h1 className="text-5xl font-black tracking-tighter text-white">LENS</h1>
+            <span className="text-xs font-black text-primary uppercase tracking-[0.4em] mt-1">Platform Access</span>
+          </div>
         </div>
 
-        <Card className="border-none shadow-xl">
-          <CardHeader>
-            <CardTitle>Welcome back</CardTitle>
-            <CardDescription>Enter your credentials to continue</CardDescription>
+        <Card className="glass-card border-primary/20 p-4">
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl font-black uppercase tracking-tight">System Login</CardTitle>
+            <CardDescription className="text-sm font-medium">Verify your credentials to initialize session</CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin} autoComplete="off">
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email" className="text-xs font-black uppercase tracking-widest text-primary/80">Identifier</Label>
                 <Input 
                   id="email" 
                   type="email" 
                   placeholder="name@example.com" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary/50"
                   required 
                   autoComplete="off"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-xs font-black uppercase tracking-widest text-primary/80">Security Key</Label>
                 <Input 
                   id="password" 
                   type="password" 
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="h-12 bg-white/5 border-white/10 rounded-xl focus:border-primary/50"
                   required 
                   autoComplete="off"
                 />
               </div>
             </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full h-11" disabled={isLoading}>
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Sign In
+            <CardFooter className="flex flex-col gap-6 pt-6">
+              <Button type="submit" className="w-full h-14 rounded-2xl glow-coral font-black uppercase tracking-tight text-lg group" disabled={isLoading}>
+                {isLoading ? <Loader2 className="w-5 h-5 animate-spin mr-3" /> : (
+                  <>
+                    Initialize Session
+                    <LogIn className="w-5 h-5 ml-3 transition-transform group-hover:translate-x-1" />
+                  </>
+                )}
               </Button>
-              <p className="text-sm text-center text-muted-foreground">
-                Don&apos;t have an account?{" "}
-                <Link href="/register" className="text-primary font-semibold hover:underline">
-                  Sign up
+              <div className="flex flex-col items-center gap-2">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
+                  New to SupportLens?
+                </p>
+                <Link href="/register" className="text-primary font-black uppercase tracking-widest text-[10px] hover:underline hover:text-primary/80 transition-all">
+                  Create Account Vault
                 </Link>
-              </p>
+              </div>
             </CardFooter>
           </form>
         </Card>
+
+        <div className="flex items-center justify-center gap-2 text-primary/30">
+          <Sparkles className="w-4 h-4" />
+          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Encrypted Data Transmission</span>
+        </div>
       </div>
     </div>
   );

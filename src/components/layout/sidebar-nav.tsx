@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   UserCog,
   Settings,
-  Activity
+  Sparkles
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -47,51 +47,59 @@ export function SidebarNav() {
   };
 
   const navItems = [
-    { name: "Support Overview", href: "/dashboard", icon: LayoutDashboard },
-    { name: "Analytics & Trends", href: "/analytics", icon: BarChart3 },
-    { name: "My Tickets", href: "/tickets", icon: TicketIcon },
-    { name: "Submit New Ticket", href: "/tickets/new", icon: PlusCircle },
+    { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
+    { name: "Vault", href: "/analytics", icon: BarChart3 },
+    { name: "Queue", href: "/tickets", icon: TicketIcon },
+    { name: "Create", href: "/tickets/new", icon: PlusCircle },
   ];
 
-  // Admin and Agent restricted items
   if (user) {
     if (user.role === 'admin' || user.email === ADMIN_EMAIL) {
-      navItems.push({ name: "System Command Center", href: "/dashboard/admin", icon: Settings });
+      navItems.push({ name: "Command", href: "/dashboard/admin", icon: Settings });
     }
     
     if (user.role !== 'user') {
-      navItems.splice(1, 0, { name: "Agent Dashboard", href: "/dashboard/agent", icon: UserCog });
+      navItems.splice(1, 0, { name: "Mission", href: "/dashboard/agent", icon: UserCog });
     }
   }
 
   return (
-    <Sidebar className="border-r shadow-sm">
-      <SidebarHeader className="h-16 flex items-center px-6 border-b">
-        <div className="flex items-center gap-2">
-          <div className="bg-primary p-2 rounded-xl">
-            <ShieldCheck className="w-6 h-6 text-primary-foreground" />
+    <Sidebar className="border-r border-white/5 bg-sidebar">
+      <SidebarHeader className="h-20 flex items-center px-6 border-b border-white/5">
+        <div className="flex items-center gap-3">
+          <div className="bg-primary p-2.5 rounded-[1rem] glow-coral">
+            <ShieldCheck className="w-6 h-6 text-white" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-primary">SupportLens</span>
+          <div className="flex flex-col">
+            <span className="text-xl font-black tracking-tighter text-white">LENS</span>
+            <span className="text-[10px] font-black text-primary tracking-widest uppercase -mt-1 opacity-80">Support</span>
+          </div>
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="p-4">
         <SidebarGroup>
-          <SidebarGroupLabel className="px-4 py-2 font-semibold text-xs uppercase tracking-wider">Navigation</SidebarGroupLabel>
+          <SidebarGroupLabel className="px-3 mb-4 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Platform</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-2">
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.name}>
                   <SidebarMenuButton 
                     asChild 
                     isActive={pathname === item.href}
                     tooltip={item.name}
+                    className={cn(
+                      "h-12 px-4 rounded-xl transition-all duration-300 group",
+                      pathname === item.href 
+                        ? "bg-primary text-white glow-coral" 
+                        : "hover:bg-white/5 text-muted-foreground hover:text-white"
+                    )}
                   >
-                    <Link href={item.href} className="flex items-center gap-3 w-full group py-6">
+                    <Link href={item.href} className="flex items-center gap-4">
                       <item.icon className={cn(
-                        "w-5 h-5 transition-colors",
-                        pathname === item.href ? "text-primary" : "text-muted-foreground group-hover:text-primary"
+                        "w-5 h-5",
+                        pathname === item.href ? "text-white" : "group-hover:text-primary transition-colors"
                       )} />
-                      <span className="font-medium">{item.name}</span>
+                      <span className="font-bold text-sm">{item.name}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -100,19 +108,24 @@ export function SidebarNav() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t p-6">
+      <SidebarFooter className="p-6 bg-white/[0.02] border-t border-white/5">
         <div className="flex flex-col gap-6">
           {user && (
-            <div className="flex items-center gap-3 px-2">
-              <Avatar className="w-10 h-10 border-2 border-primary/10 shadow-sm">
-                <AvatarImage src={`https://picsum.photos/seed/${user.uid}/100/100`} />
-                <AvatarFallback className="bg-primary/5 text-primary">
-                  {user.displayName?.[0] || user.email?.[0] || 'U'}
-                </AvatarFallback>
-              </Avatar>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="w-12 h-12 border-2 border-primary/20 ring-4 ring-primary/5">
+                  <AvatarImage src={`https://picsum.photos/seed/${user.uid}/100/100`} />
+                  <AvatarFallback className="bg-primary/10 text-primary font-black">
+                    {user.displayName?.[0] || user.email?.[0] || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-primary rounded-full border-4 border-sidebar flex items-center justify-center">
+                  <Sparkles className="w-2 h-2 text-white" />
+                </div>
+              </div>
               <div className="flex flex-col overflow-hidden">
-                <span className="text-sm font-bold truncate">{user.displayName || 'User'}</span>
-                <span className="text-[10px] font-black text-primary/70 truncate uppercase tracking-tighter">
+                <span className="text-sm font-black text-white truncate leading-tight">{user.displayName || 'User'}</span>
+                <span className="text-[10px] font-black text-primary uppercase tracking-wider mt-0.5">
                   {user.role}
                 </span>
               </div>
@@ -120,11 +133,11 @@ export function SidebarNav() {
           )}
           <Button 
             variant="ghost" 
-            className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/5 rounded-xl"
+            className="w-full justify-start gap-4 h-12 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl transition-all font-bold"
             onClick={handleLogout}
           >
             <LogOut className="w-5 h-5" />
-            <span className="font-semibold">Sign Out</span>
+            <span>Terminate Session</span>
           </Button>
         </div>
       </SidebarFooter>

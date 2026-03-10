@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useState, useEffect } from "react";
@@ -8,7 +9,9 @@ import {
   Clock, 
   AlertCircle,
   TrendingUp,
-  History
+  History,
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -42,7 +45,7 @@ export default function DashboardPage() {
 
   const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
-  const tickets = useMemo(() => {
+  const sortedTickets = useMemo(() => {
     return [...rawTickets].sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -50,10 +53,10 @@ export default function DashboardPage() {
     });
   }, [rawTickets]);
 
-  const totalTickets = tickets.length;
-  const resolvedTickets = tickets.filter(t => t.status === 'Resolved').length;
-  const inProgressTickets = tickets.filter(t => t.status === 'In Progress').length;
-  const openTickets = tickets.filter(t => t.status === 'Open').length;
+  const totalTickets = sortedTickets.length;
+  const resolvedTickets = sortedTickets.filter(t => t.status === 'Resolved').length;
+  const inProgressTickets = sortedTickets.filter(t => t.status === 'In Progress').length;
+  const openTickets = sortedTickets.filter(t => t.status === 'Open').length;
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
@@ -65,134 +68,163 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-between items-start">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Support Overview</h1>
-          <p className="text-muted-foreground">{user?.role === 'agent' ? "Global platform analytics" : "Monitor and manage your support activity"}</p>
+    <div className="space-y-10 animate-in fade-in duration-700">
+      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary/20 via-background to-background border border-white/5 p-8 md:p-12">
+        <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+          <div className="text-center md:text-left space-y-4">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-wider mb-2">
+              <Sparkles className="w-3 h-3" />
+              Intelligence Powered
+            </div>
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight leading-tight">
+              Hello, <span className="text-primary">{user?.displayName?.split(' ')[0] || 'User'}</span>
+            </h1>
+            <p className="text-muted-foreground text-lg max-w-lg">
+              Welcome back to your support ecosystem. Monitor, manage, and resolve tickets with AI-driven insights.
+            </p>
+          </div>
+          <Button size="lg" className="glow-coral h-14 px-8 rounded-2xl text-lg font-bold group" asChild>
+            <Link href="/tickets/new">
+              <TicketIcon className="w-5 h-5 mr-2" />
+              New Support Ticket
+              <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </Button>
         </div>
-        <Button asChild>
-          <Link href="/tickets/new">
-            <TicketIcon className="w-4 h-4 mr-2" />
-            New Ticket
-          </Link>
-        </Button>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
         <StatCard 
-          title="Total Tickets" 
+          title="Total Requests" 
           value={isLoading ? "..." : totalTickets} 
           icon={TicketIcon} 
           trend={{ value: 12, isPositive: true }}
         />
         <StatCard 
-          title="Resolved" 
+          title="Successfully Resolved" 
           value={isLoading ? "..." : resolvedTickets} 
           icon={CheckCircle2} 
-          iconClassName="bg-emerald-500/10 text-emerald-500"
+          iconClassName="bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
           trend={{ value: 5, isPositive: true }}
         />
         <StatCard 
-          title="In Progress" 
+          title="Work in Progress" 
           value={isLoading ? "..." : inProgressTickets} 
           icon={Clock} 
-          iconClassName="bg-amber-500/10 text-amber-500"
+          iconClassName="bg-amber-500/10 text-amber-400 border-amber-500/20"
         />
         <StatCard 
-          title="Open" 
+          title="Pending Queue" 
           value={isLoading ? "..." : openTickets} 
           icon={AlertCircle} 
-          iconClassName="bg-destructive/10 text-destructive"
+          iconClassName="bg-destructive/10 text-destructive border-destructive/20"
         />
       </div>
 
-      <div className="grid gap-6 md:grid-cols-7">
-        <Card className="md:col-span-4 border-none shadow-sm">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest requests and changes</CardDescription>
-              </div>
-              <History className="w-5 h-5 text-muted-foreground" />
+      <div className="grid gap-8 md:grid-cols-7">
+        <Card className="md:col-span-4 glass-card">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-bold">Recent Activity</CardTitle>
+              <CardDescription>Live stream of support interactions</CardDescription>
             </div>
+            <History className="w-5 h-5 text-primary opacity-50" />
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <div className="space-y-4">
-                {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full rounded-lg" />)}
+                {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full rounded-2xl bg-white/5" />)}
               </div>
-            ) : tickets.length === 0 ? (
+            ) : sortedTickets.length === 0 ? (
               <div className="h-[300px] flex flex-col items-center justify-center text-center space-y-4">
-                <div className="bg-muted p-4 rounded-full">
-                  <TicketIcon className="w-8 h-8 text-muted-foreground" />
+                <div className="bg-white/5 p-6 rounded-3xl">
+                  <TicketIcon className="w-12 h-12 text-muted-foreground opacity-20" />
                 </div>
                 <div className="max-w-[250px]">
-                  <p className="font-semibold">No tickets yet</p>
+                  <p className="font-semibold text-muted-foreground">The queue is currently empty</p>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
-                {tickets.slice(0, 5).map((ticket) => (
+                {sortedTickets.slice(0, 5).map((ticket) => (
                   <Link key={ticket.id} href={`/tickets/${ticket.id}`}>
-                    <div className="group relative flex items-center justify-between p-4 rounded-xl border hover:bg-muted/30 transition-all cursor-pointer">
-                      <div className="flex gap-4 overflow-hidden">
+                    <div className="group relative flex items-center justify-between p-5 rounded-2xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-primary/20 transition-all cursor-pointer">
+                      <div className="flex gap-5 overflow-hidden">
                         <div className={cn(
-                          "w-10 h-10 rounded-full flex items-center justify-center shrink-0",
-                          ticket.status === 'Resolved' ? "bg-emerald-500/10 text-emerald-500" :
-                          ticket.status === 'In Progress' ? "bg-amber-500/10 text-amber-500" : "bg-primary/10 text-primary"
+                          "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border",
+                          ticket.status === 'Resolved' ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                          ticket.status === 'In Progress' ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : 
+                          "bg-primary/10 text-primary border-primary/20"
                         )}>
-                          <TicketIcon className="w-5 h-5" />
+                          <TicketIcon className="w-6 h-6" />
                         </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-sm truncate group-hover:text-primary transition-colors">
+                        <div className="min-w-0 flex flex-col justify-center">
+                          <p className="font-bold text-base truncate group-hover:text-primary transition-colors">
                             {ticket.description}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          <div className="flex items-center gap-3 mt-1.5">
+                            <span className="text-xs text-muted-foreground font-medium">
                               {isMounted && ticket.createdAt ? formatDistanceToNow(new Date(ticket.createdAt)) : "..."} ago
                             </span>
-                            <span className="text-xs text-muted-foreground">•</span>
-                            <span className="text-xs font-medium text-primary truncate">{ticket.issueCategory}</span>
+                            <span className="w-1 h-1 rounded-full bg-white/20" />
+                            <span className="text-xs font-bold text-primary uppercase tracking-tighter">{ticket.issueCategory}</span>
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0 ml-4">
-                        <Badge variant={getPriorityColor(ticket.priority)} className="hidden sm:inline-flex">{ticket.priority}</Badge>
+                        <Badge variant={getPriorityColor(ticket.priority)} className="hidden sm:inline-flex rounded-lg px-2 py-0.5 text-[10px] font-black uppercase">
+                          {ticket.priority}
+                        </Badge>
                       </div>
                     </div>
                   </Link>
                 ))}
-                <Button variant="link" className="w-full text-primary" asChild>
-                  <Link href="/tickets">View all tickets</Link>
+                <Button variant="ghost" className="w-full text-primary font-bold hover:bg-primary/5 rounded-xl h-12 mt-2" asChild>
+                  <Link href="/tickets">Explore All Tickets</Link>
                 </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-3 border-none shadow-sm">
+        <Card className="md:col-span-3 glass-card flex flex-col">
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Trends</CardTitle>
-                <CardDescription>Support efficiency</CardDescription>
+                <CardTitle className="text-xl font-bold">Health Metrics</CardTitle>
+                <CardDescription>Platform solve rate efficiency</CardDescription>
               </div>
               <TrendingUp className="w-5 h-5 text-primary" />
             </div>
           </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Resolution Rate</span>
-                <span className="font-bold">{totalTickets > 0 ? Math.round((resolvedTickets/totalTickets)*100) : 0}%</span>
+          <CardContent className="flex-1 flex flex-col justify-center gap-10">
+            <div className="space-y-4">
+              <div className="flex justify-between items-end">
+                <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Resolution Accuracy</span>
+                <span className="text-4xl font-black text-primary">
+                  {totalTickets > 0 ? Math.round((resolvedTickets/totalTickets)*100) : 0}%
+                </span>
               </div>
-              <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+              <div className="h-4 w-full bg-white/5 rounded-full overflow-hidden border border-white/10">
                 <div 
-                  className="h-full bg-emerald-500 transition-all duration-1000" 
+                  className="h-full bg-gradient-to-r from-primary to-primary/60 transition-all duration-1000 glow-coral" 
                   style={{ width: `${totalTickets > 0 ? (resolvedTickets/totalTickets)*100 : 0}%` }}
                 />
+              </div>
+              <p className="text-xs text-muted-foreground italic text-center">
+                Calculated based on {resolvedTickets} resolved out of {totalTickets} total tickets.
+              </p>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Efficiency</span>
+                <span className="text-2xl font-bold text-emerald-400">High</span>
+              </div>
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/5 flex flex-col gap-1">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Uptime</span>
+                <span className="text-2xl font-bold text-primary">99.9%</span>
               </div>
             </div>
           </CardContent>

@@ -1,8 +1,9 @@
+
 "use client"
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { useStore } from "@/lib/store";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { TicketCategory, TicketPriority } from "@/lib/types";
-import { Sparkles, Loader2, ArrowLeft } from "lucide-react";
+import { Sparkles, Loader2, ArrowLeft, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useFirestore } from "@/firebase";
@@ -50,7 +51,6 @@ export default function CreateTicketPage() {
 
     setIsSubmitting(true);
     try {
-      // Get AI Summary
       const { summary } = await summarizeTicket({ description });
 
       const ticketData = {
@@ -71,8 +71,8 @@ export default function CreateTicketPage() {
       addDoc(ticketsRef, ticketData)
         .then(() => {
           toast({
-            title: "Ticket created successfully",
-            description: "Our team will review your request shortly.",
+            title: "Transmission Success",
+            description: "Your support request has been logged in the system vault.",
           });
           router.push("/tickets");
         })
@@ -87,8 +87,8 @@ export default function CreateTicketPage() {
 
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Something went wrong. Please try again.",
+        title: "Transmission Failure",
+        description: error.message || "Something went wrong during data upload.",
         variant: "destructive"
       });
       setIsSubmitting(false);
@@ -96,85 +96,91 @@ export default function CreateTicketPage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
+    <div className="max-w-3xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-700">
+      <div className="flex items-center gap-6">
+        <Button variant="outline" size="icon" className="rounded-2xl h-12 w-12 border-white/10 hover:bg-white/5 transition-all" asChild>
           <Link href="/dashboard">
             <ArrowLeft className="w-5 h-5" />
           </Link>
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">New Support Ticket</h1>
-          <p className="text-muted-foreground">Describe your issue and we'll help you solve it</p>
+        <div className="flex flex-col">
+          <h1 className="text-4xl font-black tracking-tight text-white uppercase">Initialize Ticket</h1>
+          <p className="text-muted-foreground text-lg">Your technical request will be analyzed by our intelligence engine.</p>
         </div>
       </div>
 
-      <Card className="border-none shadow-xl">
-        <CardHeader>
-          <div className="flex items-center gap-2 text-primary">
-            <Sparkles className="w-5 h-5" />
-            <CardTitle>AI-Enhanced Creation</CardTitle>
+      <Card className="glass-card border-primary/20 p-4 md:p-8">
+        <CardHeader className="text-center pb-10">
+          <div className="flex justify-center mb-6">
+            <div className="bg-primary/20 p-4 rounded-3xl glow-coral border border-primary/30">
+              <Sparkles className="w-8 h-8 text-primary" />
+            </div>
           </div>
-          <CardDescription>Our AI will summarize your ticket and route it to the right department automatically.</CardDescription>
+          <CardTitle className="text-3xl font-black uppercase tracking-tight">AI-Enhanced Processing</CardTitle>
+          <CardDescription className="text-base">Our neural networks will automatically route your request to the relevant department based on your input.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="category">Issue Category</Label>
+          <CardContent className="space-y-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <div className="space-y-3">
+                <Label htmlFor="category" className="text-xs font-black uppercase tracking-widest text-primary/80">Issue Classification</Label>
                 <Select value={category} onValueChange={(val) => setCategory(val as TicketCategory)}>
-                  <SelectTrigger id="category">
-                    <SelectValue placeholder="Select a category" />
+                  <SelectTrigger id="category" className="h-14 rounded-2xl bg-white/5 border-white/10 text-base font-bold">
+                    <SelectValue placeholder="Select Category" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="glass-card">
                     {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      <SelectItem key={cat} value={cat} className="font-bold py-3">{cat}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="priority">Priority Level</Label>
+              <div className="space-y-3">
+                <Label htmlFor="priority" className="text-xs font-black uppercase tracking-widest text-primary/80">Urgency Protocol</Label>
                 <Select value={priority} onValueChange={(val) => setPriority(val as TicketPriority)}>
-                  <SelectTrigger id="priority">
-                    <SelectValue placeholder="Select priority" />
+                  <SelectTrigger id="priority" className="h-14 rounded-2xl bg-white/5 border-white/10 text-base font-bold">
+                    <SelectValue placeholder="Select Priority" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Low">Low</SelectItem>
-                    <SelectItem value="Medium">Medium</SelectItem>
-                    <SelectItem value="High">High</SelectItem>
+                  <SelectContent className="glass-card">
+                    <SelectItem value="Low" className="font-bold py-3">Low Urgency</SelectItem>
+                    <SelectItem value="Medium" className="font-bold py-3">Standard Response</SelectItem>
+                    <SelectItem value="High" className="font-bold py-3">High Priority</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="description">Detailed Description</Label>
+            <div className="space-y-3">
+              <Label htmlFor="description" className="text-xs font-black uppercase tracking-widest text-primary/80">Detailed Technical Log</Label>
               <Textarea 
                 id="description" 
-                placeholder="Please describe your issue in detail. The more info, the faster we can help!" 
-                className="min-h-[200px]"
+                placeholder="Provide a comprehensive breakdown of the issue. Be as detailed as possible for optimal AI routing." 
+                className="min-h-[250px] rounded-2xl bg-white/5 border-white/10 text-base font-medium p-6 resize-none focus:border-primary/50 transition-all"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
               />
-              <p className="text-xs text-muted-foreground">
-                AI Tip: Include error codes or specific steps you took.
-              </p>
+              <div className="flex items-center gap-2 mt-4 text-[10px] font-black uppercase tracking-widest text-primary/60">
+                <Sparkles className="w-3 h-3" />
+                Neural network is ready for analysis
+              </div>
             </div>
           </CardContent>
-          <CardFooter className="flex justify-between items-center border-t pt-6">
-            <Button type="button" variant="ghost" asChild>
-              <Link href="/dashboard">Cancel</Link>
+          <CardFooter className="flex flex-col md:flex-row justify-between items-center gap-6 pt-10 border-t border-white/10">
+            <Button type="button" variant="ghost" className="text-muted-foreground font-bold rounded-xl h-12" asChild>
+              <Link href="/dashboard">Abort Process</Link>
             </Button>
-            <Button type="submit" className="px-8 h-11" disabled={isSubmitting}>
+            <Button type="submit" className="glow-coral h-14 px-12 rounded-2xl text-lg font-black uppercase tracking-tight disabled:opacity-50" disabled={isSubmitting}>
               {isSubmitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Analyzing & Creating...
+                  <Loader2 className="w-5 h-5 animate-spin mr-3" />
+                  Analyzing Data...
                 </>
               ) : (
-                "Submit Ticket"
+                <>
+                  Transmit Request
+                  <Send className="w-5 h-5 ml-3" />
+                </>
               )}
             </Button>
           </CardFooter>
