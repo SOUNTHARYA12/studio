@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useState, useEffect } from "react";
@@ -20,7 +19,7 @@ import {
   Legend
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, eachDayOfInterval, subDays, startOfDay, isSameDay } from "date-fns";
+import { format, eachDayOfInterval, subDays, isSameDay } from "date-fns";
 import { collection, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Ticket } from "@/lib/types";
@@ -37,8 +36,8 @@ export default function AnalyticsPage() {
   const ticketsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     const ticketsRef = collection(db, 'tickets');
-    // Admins see all for global analytics, users see their own
-    if (user.role === 'admin') {
+    // Admins see all for global analytics, agents see all, users see their own
+    if (user.role === 'admin' || user.role !== 'user') {
       return ticketsRef;
     }
     return query(ticketsRef, where('userId', '==', user.uid));
@@ -46,6 +45,7 @@ export default function AnalyticsPage() {
 
   const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
+  // Real-time calculation of category distribution
   const categoryData = useMemo(() => {
     if (!rawTickets) return [];
     const counts: Record<string, number> = {};
@@ -55,6 +55,7 @@ export default function AnalyticsPage() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [rawTickets]);
 
+  // Real-time calculation of priority distribution
   const priorityData = useMemo(() => {
     if (!rawTickets) return [];
     const counts = { Low: 0, Medium: 0, High: 0 };
@@ -66,6 +67,7 @@ export default function AnalyticsPage() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
   }, [rawTickets]);
 
+  // Real-time calculation of volume trends
   const timeSeriesData = useMemo(() => {
     if (!isMounted || !rawTickets) return [];
     
@@ -92,17 +94,17 @@ export default function AnalyticsPage() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-primary">Support Analytics</h1>
-        <p className="text-muted-foreground">Real-time performance metrics and issue distribution</p>
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Support Performance</h1>
+        <p className="text-muted-foreground">Real-time resolution metrics and demand trends</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="lg:col-span-2 border-none shadow-sm">
-          <CardHeader>
-            <CardTitle>Tickets Over Time</CardTitle>
-            <CardDescription>Volume of requests received in the last 7 days</CardDescription>
+        <Card className="lg:col-span-2 border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-muted/10">
+            <CardTitle>Ticket Volume Trend</CardTitle>
+            <CardDescription>Frequency of requests submitted in the last 7 days</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] pt-6">
             {isLoading || !isMounted ? <Skeleton className="w-full h-full" /> : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timeSeriesData}>
@@ -135,12 +137,12 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-sm">
-          <CardHeader>
-            <CardTitle>Issue Categories</CardTitle>
-            <CardDescription>Real-time distribution of ticket types</CardDescription>
+        <Card className="border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-muted/10">
+            <CardTitle>Department Load</CardTitle>
+            <CardDescription>Live distribution across issue categories</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] pt-6">
             {isLoading || !isMounted ? <Skeleton className="w-full h-full" /> : (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -165,12 +167,12 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card className="md:col-span-2 border-none shadow-sm">
-          <CardHeader>
-            <CardTitle>Priority Load</CardTitle>
-            <CardDescription>Breakdown of current urgency levels</CardDescription>
+        <Card className="md:col-span-2 border-none shadow-sm overflow-hidden">
+          <CardHeader className="bg-muted/10">
+            <CardTitle>Urgency Breakdown</CardTitle>
+            <CardDescription>Current tickets grouped by priority level</CardDescription>
           </CardHeader>
-          <CardContent className="h-[300px]">
+          <CardContent className="h-[300px] pt-6">
             {isLoading || !isMounted ? <Skeleton className="w-full h-full" /> : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={priorityData}>
@@ -193,21 +195,24 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-none shadow-sm bg-primary text-primary-foreground">
-          <CardHeader>
-            <CardTitle>Efficiency Insights</CardTitle>
-            <CardDescription className="text-primary-foreground/70">Real-time resolution metrics</CardDescription>
+        <Card className="border-none shadow-sm bg-primary text-primary-foreground overflow-hidden">
+          <CardHeader className="bg-white/5">
+            <CardTitle>Resolution Efficiency</CardTitle>
+            <CardDescription className="text-primary-foreground/70">Calculated from total ticket status</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-white/10 p-4 rounded-xl border border-white/10">
-              <p className="text-xs font-medium uppercase tracking-wider opacity-70">Total Volume</p>
-              <p className="text-3xl font-bold">{rawTickets.length}</p>
+          <CardContent className="space-y-4 pt-6">
+            <div className="bg-white/10 p-5 rounded-2xl border border-white/10">
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">Total Queue Size</p>
+              <p className="text-4xl font-black">{rawTickets.length}</p>
             </div>
-            <div className="bg-white/10 p-4 rounded-xl border border-white/10">
-              <p className="text-xs font-medium uppercase tracking-wider opacity-70">Resolution Rate</p>
-              <p className="text-3xl font-bold">
-                {rawTickets.length > 0 ? Math.round((rawTickets.filter(t => t.status === 'Resolved').length / rawTickets.length) * 100) : 0}%
-              </p>
+            <div className="bg-white/10 p-5 rounded-2xl border border-white/10">
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">System-wide Solve Rate</p>
+              <div className="flex items-baseline gap-2">
+                <p className="text-4xl font-black">
+                  {rawTickets.length > 0 ? Math.round((rawTickets.filter(t => t.status === 'Resolved').length / rawTickets.length) * 100) : 0}%
+                </p>
+                <span className="text-xs opacity-70">of tickets closed</span>
+              </div>
             </div>
           </CardContent>
         </Card>

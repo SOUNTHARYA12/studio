@@ -5,7 +5,7 @@ import { collection, doc, updateDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { Ticket, TicketStatus, TicketCategory } from "@/lib/types";
+import { Ticket, TicketStatus, TicketCategory, UserRole } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,13 +19,25 @@ import {
   Calendar,
   AlertCircle,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Filter
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from "next/link";
+import { cn } from "@/lib/utils";
+
+// Mapping of Agent Roles to Ticket Categories for dynamic filtering
+const ROLE_TO_CATEGORY_MAP: Record<string, TicketCategory> = {
+  'Billing Agent': 'Billing Inquiry',
+  'Technical Support Agent': 'Technical Support',
+  'Customer Support Agent': 'General Inquiry',
+  'Account Management Agent': 'Account Management',
+  'Developer Agent': 'Bug Report',
+  'Product Team Agent': 'Feature Request',
+};
 
 export default function AgentDashboardPage() {
   const { user } = useStore();
@@ -37,7 +49,7 @@ export default function AgentDashboardPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Role protection - ensure user is an agent
+    // Role protection - ensure user is an agent or admin
     if (user && user.role === 'user') {
       router.push("/dashboard");
     }
@@ -50,37 +62,30 @@ export default function AgentDashboardPage() {
 
   const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
-  // Department mapping logic
-  const departmentMapping: Record<string, TicketCategory> = {
-    'Billing Agent': 'Billing Inquiry',
-    'Technical Support Agent': 'Technical Support',
-    'Customer Support Agent': 'General Inquiry',
-    'Account Management Agent': 'Account Management',
-    'Developer Agent': 'Bug Report',
-    'Product Team Agent': 'Feature Request',
-  };
-
   const filteredTickets = useMemo(() => {
     if (!user) return [];
     
-    // Admin sees everything, specific agents see their category
+    // Filter logic: 
+    // 1. Admins see everything.
+    // 2. Agents see tickets matching their department/role mapping.
     let filtered = rawTickets;
     
     if (user.role !== 'admin') {
-      const allowedCategory = departmentMapping[user.role];
+      const allowedCategory = ROLE_TO_CATEGORY_MAP[user.role];
       if (allowedCategory) {
         filtered = filtered.filter(t => t.issueCategory === allowedCategory);
       } else {
-        // If they have an unknown agent role, show nothing for security
+        // Fallback for unexpected roles
         return [];
       }
     }
 
+    // Apply search filter
     return filtered
       .filter(t => 
         t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.userEmail.toLowerCase().includes(searchTerm.toLowerCase())
+        t.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        t.id.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [rawTickets, searchTerm, user]);
@@ -96,7 +101,7 @@ export default function AgentDashboardPage() {
       .then(() => {
         toast({
           title: "Status Updated",
-          description: `Ticket is now marked as ${status}.`,
+          description: `Ticket #${ticketId.slice(0, 8)} is now marked as ${status}.`,
         });
       })
       .catch(async (error) => {
@@ -127,37 +132,29 @@ export default function AgentDashboardPage() {
 
   if (!isMounted || !user) return null;
 
-  if (user.role === 'user') {
-    return (
-      <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <ShieldAlert className="w-16 h-16 text-destructive" />
-        <h2 className="text-2xl font-bold">Access Denied</h2>
-        <p className="text-muted-foreground text-center max-w-md">
-          This dashboard is reserved for support agents only.
-        </p>
-        <Button asChild>
-          <Link href="/dashboard">Return to My Dashboard</Link>
-        </Button>
-      </div>
-    );
-  }
+  if (user.role === 'user') return null;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary">{user.role} Dashboard</h1>
+          <div className="flex items-center gap-2 mb-2">
+            <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
+              {user.role}
+            </Badge>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">Support Queue</h1>
           <p className="text-muted-foreground">
             {user.role === 'admin' 
-              ? "Monitor global support activity across all departments" 
-              : `Managing ${departmentMapping[user.role]} tickets`}
+              ? "Global oversight of all departmental inquiries" 
+              : `Managing the ${ROLE_TO_CATEGORY_MAP[user.role]} department`}
           </p>
         </div>
-        <div className="relative w-full md:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <div className="relative w-full md:w-96 group">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
           <Input 
-            placeholder="Search tickets..." 
-            className="pl-10" 
+            placeholder="Search by ID, email, or issue..." 
+            className="pl-10 h-11 border-none bg-muted/50 focus-visible:ring-primary shadow-sm" 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -167,82 +164,99 @@ export default function AgentDashboardPage() {
       {isLoading ? (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map(i => (
-            <Card key={i} className="animate-pulse h-64 bg-muted/50" />
+            <Card key={i} className="animate-pulse h-72 bg-muted/50 border-none" />
           ))}
         </div>
       ) : filteredTickets.length === 0 ? (
-        <div className="text-center py-20 bg-muted/20 rounded-2xl border-2 border-dashed">
-          <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-lg font-medium">No tickets found in your department</p>
+        <div className="text-center py-24 bg-muted/20 rounded-3xl border-2 border-dashed flex flex-col items-center">
+          <Filter className="w-16 h-16 mb-4 text-muted-foreground opacity-20" />
+          <h3 className="text-xl font-semibold text-muted-foreground">No active tickets found</h3>
+          <p className="text-sm text-muted-foreground/60 max-w-xs mt-2">
+            All caught up! There are currently no tickets matching your department criteria or search.
+          </p>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredTickets.map((ticket) => (
-            <Card key={ticket.id} className="group border-none shadow-sm hover:shadow-md transition-all flex flex-col">
+            <Card key={ticket.id} className="group border-none shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col bg-card overflow-hidden">
+              <div className={cn(
+                "h-1.5 w-full",
+                ticket.priority === 'High' ? "bg-destructive" : 
+                ticket.priority === 'Medium' ? "bg-primary" : "bg-muted"
+              )} />
               <CardHeader className="pb-3">
-                <div className="flex justify-between items-start gap-2">
-                  <Badge variant={getPriorityColor(ticket.priority)}>
-                    {ticket.priority}
+                <div className="flex justify-between items-start gap-2 mb-2">
+                  <Badge variant={getPriorityColor(ticket.priority)} className="text-[10px] font-bold">
+                    {ticket.priority} PRIORITY
                   </Badge>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     {getStatusIcon(ticket.status)}
-                    <span className="text-xs font-medium uppercase">{ticket.status}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{ticket.status}</span>
                   </div>
                 </div>
-                <CardTitle className="text-lg line-clamp-2 min-h-[3rem] mt-2">
+                <CardTitle className="text-lg font-bold line-clamp-2 min-h-[3rem]">
                   {ticket.description}
                 </CardTitle>
-                <CardDescription className="flex items-center gap-2">
+                <div className="flex items-center gap-2 mt-2 text-primary font-medium text-xs">
                   <Tag className="w-3.5 h-3.5" />
                   {ticket.issueCategory}
-                </CardDescription>
+                </div>
               </CardHeader>
-              <CardContent className="flex-1 space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Mail className="w-3.5 h-3.5" />
-                  <span className="truncate">User ID: {ticket.userId}</span>
+              <CardContent className="flex-1 space-y-3 pb-4">
+                <div className="flex items-center gap-3 p-2 rounded-lg bg-muted/30">
+                  <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground/60">Customer Email</span>
+                    <span className="text-xs truncate font-medium">{ticket.userEmail}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>{format(new Date(ticket.createdAt), "MMM d, yyyy")}</span>
-                </div>
-                <div className="text-xs text-muted-foreground font-mono mt-1">
-                  ID: {ticket.id}
+                <div className="flex items-center gap-3 px-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-muted-foreground/60">Submitted On</span>
+                    <span className="text-xs font-medium">{format(new Date(ticket.createdAt), "MMM d, yyyy • HH:mm")}</span>
+                  </div>
                 </div>
               </CardContent>
-              <CardFooter className="pt-4 border-t flex flex-col gap-3">
+              <CardFooter className="pt-4 border-t bg-muted/5 flex flex-col gap-3">
                 <div className="flex gap-2 w-full">
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex-1"
+                    className={cn(
+                      "flex-1 text-[10px] font-bold h-9",
+                      ticket.status === 'Open' && "bg-primary/10 border-primary/20 text-primary"
+                    )}
                     onClick={() => updateStatus(ticket.id!, 'Open')}
                     disabled={ticket.status === 'Open'}
                   >
-                    Open
+                    OPEN
                   </Button>
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="flex-1"
+                    className={cn(
+                      "flex-1 text-[10px] font-bold h-9",
+                      ticket.status === 'In Progress' && "bg-amber-500/10 border-amber-500/20 text-amber-600"
+                    )}
                     onClick={() => updateStatus(ticket.id!, 'In Progress')}
                     disabled={ticket.status === 'In Progress'}
                   >
-                    In Progress
+                    PROGRESS
                   </Button>
                 </div>
                 <Button 
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="w-full h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-lg shadow-emerald-600/20 transition-all active:scale-[0.98]"
                   onClick={() => updateStatus(ticket.id!, 'Resolved')}
                   disabled={ticket.status === 'Resolved'}
                 >
                   <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Mark Resolved
+                  RESOLVE TICKET
                 </Button>
-                <Button variant="ghost" className="w-full h-8 text-xs" asChild>
+                <Button variant="ghost" className="w-full h-8 text-[10px] font-bold hover:bg-primary/5 hover:text-primary group/link" asChild>
                   <Link href={`/tickets/${ticket.id}`}>
-                    Open Conversation
-                    <ArrowRight className="w-3 h-3 ml-2" />
+                    VIEW FULL CONVERSATION
+                    <ArrowRight className="w-3.5 h-3.5 ml-2 transition-transform group-hover/link:translate-x-1" />
                   </Link>
                 </Button>
               </CardFooter>
