@@ -43,8 +43,7 @@ export default function RegisterPage() {
       
       await updateProfile(user, { displayName: name });
       
-      // CRITICAL: Force Admin role if the specific email is used
-      const finalRole: UserRole = email.trim() === ADMIN_EMAIL ? "admin" : role;
+      const finalRole: UserRole = email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() ? "admin" : role;
 
       const userData: UserProfile = {
         uid: user.uid,
@@ -155,7 +154,7 @@ export default function RegisterPage() {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="sountharyar.ad23@bitsathy.ac.in" 
+                  placeholder="name@example.com" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 

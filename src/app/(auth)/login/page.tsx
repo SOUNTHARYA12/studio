@@ -32,14 +32,13 @@ export default function LoginPage() {
     
     setIsLoading(true);
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
       const user = userCredential.user;
       
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
       
       if (!userDoc.exists()) {
-        // Fallback for older accounts without Firestore profiles
         const fallbackData = {
           uid: user.uid,
           email: user.email,
@@ -105,7 +104,7 @@ export default function LoginPage() {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="sountharyar.ad23@bitsathy.ac.in" 
+                  placeholder="name@example.com" 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
@@ -117,6 +116,7 @@ export default function LoginPage() {
                 <Input 
                   id="password" 
                   type="password" 
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
