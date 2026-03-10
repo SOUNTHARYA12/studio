@@ -1,11 +1,12 @@
+
 "use client"
 
 import { useMemo, useState, useEffect } from "react";
-import { collection, doc, updateDoc } from "firebase/firestore";
+import { collection, doc, updateDoc, query, where } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { Ticket, TicketStatus, TicketCategory, UserRole } from "@/lib/types";
+import { Ticket, TicketStatus, TicketCategory, roleToCategoryMap } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,16 +29,6 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-// Mapping agent roles to ticket categories
-export const roleToCategoryMap: Record<string, TicketCategory> = {
-  'Billing Agent': 'Billing Inquiry',
-  'Technical Support Agent': 'Technical Support',
-  'Customer Support Agent': 'General Inquiry',
-  'Account Management Agent': 'Account Management',
-  'Developer Agent': 'Bug Report',
-  'Product Team Agent': 'Feature Request',
-};
-
 export default function AgentDashboardPage() {
   const { user } = useStore();
   const db = useFirestore();
@@ -54,32 +45,33 @@ export default function AgentDashboardPage() {
     }
   }, [user, router]);
 
+  // STRICT departmental query: Agents ONLY see tickets for their assigned category.
   const ticketsQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return collection(db, 'tickets');
-  }, [db]);
+    if (!db || !user) return null;
+    const ticketsRef = collection(db, 'tickets');
+    
+    // Admins see everything
+    if (user.role === 'admin') {
+      return ticketsRef;
+    }
+    
+    // Staff roles see only their department
+    const assignedCategory = roleToCategoryMap[user.role as string];
+    if (assignedCategory) {
+      return query(ticketsRef, where('issueCategory', '==', assignedCategory));
+    }
+    
+    // Fallback for unauthorized roles
+    return query(ticketsRef, where('issueCategory', '==', 'UNAUTHORIZED_ACCESS'));
+  }, [db, user?.role]);
 
   const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
   const filteredTickets = useMemo(() => {
     if (!user) return [];
     
-    let filtered = rawTickets;
-    
-    // Filter by role-specific category if not admin
-    if (user.role !== 'admin' && user.role !== 'user') {
-      const assignedCategory = roleToCategoryMap[user.role as string];
-      if (assignedCategory) {
-        filtered = filtered.filter(t => t.issueCategory === assignedCategory);
-      } else {
-        return [];
-      }
-    } else if (user.role === 'user') {
-      return [];
-    }
-
-    // Apply search filter
-    return filtered
+    // Apply search filter locally on the department-specific stream
+    return rawTickets
       .filter(t => 
         t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.userEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||

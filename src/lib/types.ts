@@ -46,3 +46,15 @@ export interface UserProfile {
   createdAt?: string;
   status?: 'active' | 'disabled';
 }
+
+/**
+ * Maps staff roles to their responsible ticket categories.
+ */
+export const roleToCategoryMap: Record<string, TicketCategory> = {
+  'Billing Agent': 'Billing Inquiry',
+  'Technical Support Agent': 'Technical Support',
+  'Customer Support Agent': 'General Inquiry',
+  'Account Management Agent': 'Account Management',
+  'Developer Agent': 'Bug Report',
+  'Product Team Agent': 'Feature Request',
+};

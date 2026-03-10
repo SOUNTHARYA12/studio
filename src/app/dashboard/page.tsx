@@ -22,9 +22,8 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { collection, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { Ticket } from "@/lib/types";
+import { Ticket, roleToCategoryMap } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { roleToCategoryMap } from "./agent/page";
 
 export default function DashboardPage() {
   const { user } = useStore();
@@ -39,20 +38,22 @@ export default function DashboardPage() {
     if (!db || !user?.uid) return null;
     const ticketsRef = collection(db, 'tickets');
     
-    const isStaff = user.role !== 'user';
+    // Admin sees everything
+    if (user.role === 'admin') {
+      return ticketsRef;
+    }
     
-    if (isStaff) {
-      if (user.role === 'admin') {
-        return ticketsRef;
-      }
-      // Agent-specific category filtering
+    // Staff roles see only their department
+    if (user.role !== 'user') {
       const assignedCategory = roleToCategoryMap[user.role as string];
       if (assignedCategory) {
         return query(ticketsRef, where('issueCategory', '==', assignedCategory));
       }
-      return ticketsRef;
+      // If we are staff but unrecognized, return an empty set for safety
+      return query(ticketsRef, where('issueCategory', '==', 'UNASSIGNED_DEPARTMENT'));
     }
     
+    // Standard users see only their own tickets
     return query(ticketsRef, where('userId', '==', user.uid));
   }, [db, user?.uid, user?.role]);
 
