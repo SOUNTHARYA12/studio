@@ -98,7 +98,7 @@ export default function LoginPage() {
             <CardTitle>Welcome back</CardTitle>
             <CardDescription>Enter your credentials to continue</CardDescription>
           </CardHeader>
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleLogin} autoComplete="off">
             <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="email">Email address</Label>
@@ -109,6 +109,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
+                  autoComplete="off"
                 />
               </div>
               <div className="space-y-2">
@@ -119,6 +120,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
+                  autoComplete="off"
                 />
               </div>
             </CardContent>

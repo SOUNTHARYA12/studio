@@ -110,7 +110,7 @@ export default function RegisterPage() {
             <CardTitle>Get started</CardTitle>
             <CardDescription>Fill in your details and select your role</CardDescription>
           </CardHeader>
-          <form onSubmit={handleRegister}>
+          <form onSubmit={handleRegister} autoComplete="off">
             <CardContent className="space-y-6">
               {email.trim().toLowerCase() === ADMIN_EMAIL.toLowerCase() ? (
                 <div className="bg-primary/5 p-4 rounded-lg border border-primary/20 flex items-center gap-3">
@@ -147,6 +147,7 @@ export default function RegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   required 
+                  autoComplete="off"
                 />
               </div>
               <div className="space-y-2">
@@ -158,6 +159,7 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required 
+                  autoComplete="off"
                 />
               </div>
               <div className="space-y-2">
@@ -169,6 +171,7 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required 
+                  autoComplete="off"
                 />
               </div>
             </CardContent>
