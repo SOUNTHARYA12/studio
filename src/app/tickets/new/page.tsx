@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { collection, addDoc } from "firebase/firestore";
 import { useStore } from "@/lib/store";
@@ -56,6 +57,12 @@ export default function CreateTicketPage() {
   const router = useRouter();
   const db = useFirestore();
 
+  useEffect(() => {
+    if (user && user.role !== 'user') {
+      router.push("/dashboard");
+    }
+  }, [user, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !db) return;
@@ -105,6 +112,8 @@ export default function CreateTicketPage() {
       setIsSubmitting(false);
     }
   };
+
+  if (user?.role !== 'user') return null;
 
   return (
     <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-700">

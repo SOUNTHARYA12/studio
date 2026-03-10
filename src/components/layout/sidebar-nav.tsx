@@ -51,16 +51,19 @@ export function SidebarNav() {
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "Vault", href: "/analytics", icon: BarChart3 },
     { name: "Queue", href: "/tickets", icon: TicketIcon },
-    { name: "Create", href: "/tickets/new", icon: PlusCircle },
     { name: "Profile", href: "/dashboard/profile", icon: UserCircle },
   ];
 
   if (user) {
+    // Only standard users can create tickets
+    if (user.role === 'user') {
+      navItems.splice(3, 0, { name: "Create", href: "/tickets/new", icon: PlusCircle });
+    }
+
     if (user.role === 'admin' || user.email === ADMIN_EMAIL) {
       navItems.push({ name: "Command", href: "/dashboard/admin", icon: Settings });
     }
     
-    // An agent is someone whose role is not 'user' and not 'admin'
     const isAgent = user.role !== 'user' && user.role !== 'admin';
     if (isAgent) {
       navItems.splice(1, 0, { name: "Mission", href: "/dashboard/agent", icon: UserCog });

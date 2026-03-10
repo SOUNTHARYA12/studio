@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useState, useEffect } from "react";
@@ -79,6 +80,8 @@ export default function DashboardPage() {
     }
   };
 
+  const canCreateTicket = user?.role === 'user';
+
   return (
     <div className="space-y-10 animate-in fade-in duration-700">
       <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-primary/20 via-background to-background border border-white/5 p-8 md:p-12">
@@ -97,13 +100,15 @@ export default function DashboardPage() {
                 : `Command Center: Overseeing the ${user?.role.replace(' Agent', '')} department.`}
             </p>
           </div>
-          <Button size="lg" className="glow-coral h-14 px-8 rounded-2xl text-lg font-bold group" asChild>
-            <Link href="/tickets/new">
-              <TicketIcon className="w-5 h-5 mr-2" />
-              New Support Ticket
-              <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
-            </Link>
-          </Button>
+          {canCreateTicket && (
+            <Button size="lg" className="glow-coral h-14 px-8 rounded-2xl text-lg font-bold group" asChild>
+              <Link href="/tickets/new">
+                <TicketIcon className="w-5 h-5 mr-2" />
+                New Support Ticket
+                <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover:translate-x-1" />
+              </Link>
+            </Button>
+          )}
         </div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
       </div>
