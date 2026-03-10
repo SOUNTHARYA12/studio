@@ -37,9 +37,22 @@ export default function DashboardPage() {
   const ticketsQuery = useMemoFirebase(() => {
     if (!db || !user?.uid) return null;
     const ticketsRef = collection(db, 'tickets');
-    if (user.role === 'agent') {
-      return ticketsRef;
+    
+    // Admins and Agents see broader data
+    const isStaff = user.role !== 'user';
+    
+    if (isStaff) {
+      // For agents, we might want to filter the overview to their department 
+      // or show global stats. Per previous prompts, agents see their department.
+      // If admin, show everything.
+      if (user.role === 'admin') {
+        return ticketsRef;
+      }
+      // If specialized agent, filter overview to their category
+      return query(ticketsRef, where('issueCategory', '==', user.role));
     }
+    
+    // Standard users only see their own tickets
     return query(ticketsRef, where('userId', '==', user.uid));
   }, [db, user?.uid, user?.role]);
 
@@ -80,7 +93,9 @@ export default function DashboardPage() {
               Hello, <span className="text-primary">{user?.displayName?.split(' ')[0] || 'User'}</span>
             </h1>
             <p className="text-muted-foreground text-lg max-w-lg">
-              Welcome back to your support ecosystem. Monitor, manage, and resolve tickets with AI-driven insights.
+              {user?.role === 'user' 
+                ? "Welcome back to your support ecosystem. Monitor and manage your requests."
+                : `Command Center: Overseeing the ${user?.role} department.`}
             </p>
           </div>
           <Button size="lg" className="glow-coral h-14 px-8 rounded-2xl text-lg font-bold group" asChild>
