@@ -14,7 +14,9 @@ import { ShieldCheck, Loader2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
-import { UserRole } from "@/lib/types";
+import { UserRole, UserProfile } from "@/lib/types";
+
+const ADMIN_EMAIL = "sountharyar.ad23@bitsathy.ac.in";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
@@ -40,12 +42,16 @@ export default function RegisterPage() {
       
       await updateProfile(user, { displayName: name });
       
-      const userData = {
+      // Determine role based on specific admin email requirement
+      const finalRole: UserRole = email === ADMIN_EMAIL ? "admin" : role;
+
+      const userData: UserProfile = {
         uid: user.uid,
         email: user.email,
         displayName: name,
-        role: role,
+        role: finalRole,
         createdAt: new Date().toISOString(),
+        status: 'active',
       };
 
       const userRef = doc(db, "users", user.uid);
@@ -60,12 +66,7 @@ export default function RegisterPage() {
           errorEmitter.emit('permission-error', permissionError);
         });
 
-      setUser({
-        uid: user.uid,
-        email: user.email,
-        displayName: name,
-        role: role,
-      });
+      setUser(userData);
 
       router.push("/dashboard");
     } catch (error: any) {

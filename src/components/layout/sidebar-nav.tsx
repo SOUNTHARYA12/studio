@@ -9,7 +9,8 @@ import {
   BarChart3, 
   LogOut,
   ShieldCheck,
-  UserCog
+  UserCog,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -30,6 +31,8 @@ import { useStore } from "@/lib/store";
 import { useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
 
+const ADMIN_EMAIL = "sountharyar.ad23@bitsathy.ac.in";
+
 export function SidebarNav() {
   const pathname = usePathname();
   const { user, setUser } = useStore();
@@ -48,9 +51,14 @@ export function SidebarNav() {
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
   ];
 
-  // If user is an agent (not 'user' role), add the Agent Dashboard
-  if (user && user.role !== 'user') {
-    navItems.splice(1, 0, { name: "Agent Dashboard", href: "/dashboard/agent", icon: UserCog });
+  // Admin and Agent restricted items
+  if (user) {
+    if (user.role === 'admin' || user.email === ADMIN_EMAIL) {
+      navItems.push({ name: "Admin Dashboard", href: "/dashboard/admin", icon: Settings });
+    }
+    if (user.role !== 'user' && user.role !== 'admin') {
+      navItems.splice(1, 0, { name: "Agent Dashboard", href: "/dashboard/agent", icon: UserCog });
+    }
   }
 
   return (
