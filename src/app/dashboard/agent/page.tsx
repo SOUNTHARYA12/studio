@@ -28,6 +28,16 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
+// Mapping agent roles to ticket categories
+export const roleToCategoryMap: Record<string, TicketCategory> = {
+  'Billing Agent': 'Billing Inquiry',
+  'Technical Support Agent': 'Technical Support',
+  'Customer Support Agent': 'General Inquiry',
+  'Account Management Agent': 'Account Management',
+  'Developer Agent': 'Bug Report',
+  'Product Team Agent': 'Feature Request',
+};
+
 export default function AgentDashboardPage() {
   const { user } = useStore();
   const db = useFirestore();
@@ -38,7 +48,7 @@ export default function AgentDashboardPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Role protection - ensure user is an agent (role matches a category) or admin
+    // Role protection - ensure user is an agent or admin
     if (user && user.role === 'user') {
       router.push("/dashboard");
     }
@@ -54,13 +64,17 @@ export default function AgentDashboardPage() {
   const filteredTickets = useMemo(() => {
     if (!user) return [];
     
-    // Filter logic: 
-    // 1. Admins see everything.
-    // 2. Agents see tickets matching their department/role mapping (which are now identical strings).
     let filtered = rawTickets;
     
+    // Filter by role-specific category if not admin
     if (user.role !== 'admin' && user.role !== 'user') {
-      filtered = filtered.filter(t => t.issueCategory === user.role);
+      const assignedCategory = roleToCategoryMap[user.role as string];
+      if (assignedCategory) {
+        filtered = filtered.filter(t => t.issueCategory === assignedCategory);
+      } else {
+        // If role doesn't map (though it should), show nothing for safety
+        return [];
+      }
     } else if (user.role === 'user') {
       return [];
     }
@@ -118,20 +132,22 @@ export default function AgentDashboardPage() {
   if (!isMounted || !user) return null;
   if (user.role === 'user') return null;
 
+  const departmentLabel = user.role === 'admin' ? 'Global' : user.role.replace(' Agent', '');
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-              {user.role} Department
+              {departmentLabel} Department
             </Badge>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Support Queue</h1>
           <p className="text-muted-foreground">
             {user.role === 'admin' 
               ? "Global oversight of all departmental inquiries" 
-              : `Managing the ${user.role} queue`}
+              : `Managing the ${departmentLabel} queue`}
           </p>
         </div>
         <div className="relative w-full md:w-96 group">

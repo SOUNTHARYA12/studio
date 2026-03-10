@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useMemo, useState, useEffect } from "react";
@@ -24,6 +23,7 @@ import { collection, query, where } from "firebase/firestore";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Ticket } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { roleToCategoryMap } from "./agent/page";
 
 export default function DashboardPage() {
   const { user } = useStore();
@@ -38,21 +38,20 @@ export default function DashboardPage() {
     if (!db || !user?.uid) return null;
     const ticketsRef = collection(db, 'tickets');
     
-    // Admins and Agents see broader data
     const isStaff = user.role !== 'user';
     
     if (isStaff) {
-      // For agents, we might want to filter the overview to their department 
-      // or show global stats. Per previous prompts, agents see their department.
-      // If admin, show everything.
       if (user.role === 'admin') {
         return ticketsRef;
       }
-      // If specialized agent, filter overview to their category
-      return query(ticketsRef, where('issueCategory', '==', user.role));
+      // Agent-specific category filtering
+      const assignedCategory = roleToCategoryMap[user.role as string];
+      if (assignedCategory) {
+        return query(ticketsRef, where('issueCategory', '==', assignedCategory));
+      }
+      return ticketsRef;
     }
     
-    // Standard users only see their own tickets
     return query(ticketsRef, where('userId', '==', user.uid));
   }, [db, user?.uid, user?.role]);
 
@@ -95,7 +94,7 @@ export default function DashboardPage() {
             <p className="text-muted-foreground text-lg max-w-lg">
               {user?.role === 'user' 
                 ? "Welcome back to your support ecosystem. Monitor and manage your requests."
-                : `Command Center: Overseeing the ${user?.role} department.`}
+                : `Command Center: Overseeing the ${user?.role.replace(' Agent', '')} department.`}
             </p>
           </div>
           <Button size="lg" className="glow-coral h-14 px-8 rounded-2xl text-lg font-bold group" asChild>

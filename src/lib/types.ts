@@ -5,12 +5,12 @@ export type TicketCategory = 'Technical Support' | 'Billing Inquiry' | 'Account 
 export type UserRole = 
   | 'user' 
   | 'admin'
-  | 'Technical Support' 
-  | 'Billing Inquiry' 
-  | 'Account Management' 
-  | 'General Inquiry' 
-  | 'Bug Report' 
-  | 'Feature Request';
+  | 'Technical Support Agent' 
+  | 'Billing Agent' 
+  | 'Account Management Agent' 
+  | 'Customer Support Agent' 
+  | 'Developer Agent' 
+  | 'Product Team Agent';
 
 export interface Ticket {
   id: string;

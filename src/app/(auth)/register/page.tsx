@@ -32,13 +32,12 @@ const ADMIN_EMAIL = "sountharyar.ad23@bitsathy.ac.in";
 
 const roleOptions = [
   { id: 'user', title: 'Customer', description: 'Access support and track tickets', icon: User },
-  { id: 'admin', title: 'Admin', description: 'Full system oversight', icon: Shield },
-  { id: 'General Inquiry', title: 'General Inquiry', description: 'Standard questions or feedback', icon: MessageSquare },
-  { id: 'Technical Support', title: 'Technical Support', description: 'Hardware or software issues', icon: Wrench },
-  { id: 'Billing Inquiry', title: 'Billing Inquiry', description: 'Invoices, payments, and refunds', icon: CreditCard },
-  { id: 'Account Management', title: 'Account Management', description: 'Access, security, or profile updates', icon: UserCog },
-  { id: 'Bug Report', title: 'Bug Report', description: 'Report technical errors or crashes', icon: Bug },
-  { id: 'Feature Request', title: 'Feature Request', description: 'Suggest new platform capabilities', icon: Lightbulb },
+  { id: 'Customer Support Agent', title: 'Customer Support', description: 'Handle general inquiries', icon: MessageSquare },
+  { id: 'Technical Support Agent', title: 'Technical Support', description: 'Hardware or software issues', icon: Wrench },
+  { id: 'Billing Agent', title: 'Billing Agent', description: 'Invoices, payments, and refunds', icon: CreditCard },
+  { id: 'Account Management Agent', title: 'Account Manager', description: 'Security and profile updates', icon: UserCog },
+  { id: 'Developer Agent', title: 'Developer Agent', description: 'Report technical errors or bug reports', icon: Bug },
+  { id: 'Product Team Agent', title: 'Product Team', description: 'Suggest new platform features', icon: Lightbulb },
 ];
 
 export default function RegisterPage() {
