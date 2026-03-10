@@ -2,6 +2,16 @@ export type TicketStatus = 'Open' | 'In Progress' | 'Resolved';
 export type TicketPriority = 'Low' | 'Medium' | 'High';
 export type TicketCategory = 'Technical Support' | 'Billing Inquiry' | 'Account Management' | 'General Inquiry' | 'Bug Report' | 'Feature Request';
 
+export type UserRole = 
+  | 'user' 
+  | 'Billing Agent' 
+  | 'Technical Support Agent' 
+  | 'Customer Support Agent' 
+  | 'Account Management Agent' 
+  | 'Developer Agent' 
+  | 'Product Team Agent' 
+  | 'admin';
+
 export interface Ticket {
   id: string;
   userName: string;
@@ -29,5 +39,5 @@ export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
-  role: 'user' | 'agent';
+  role: UserRole;
 }

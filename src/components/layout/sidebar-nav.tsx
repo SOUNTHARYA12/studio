@@ -48,7 +48,8 @@ export function SidebarNav() {
     { name: "Analytics", href: "/analytics", icon: BarChart3 },
   ];
 
-  if (user?.role === 'agent') {
+  // If user is an agent (not 'user' role), add the Agent Dashboard
+  if (user && user.role !== 'user') {
     navItems.splice(1, 0, { name: "Agent Dashboard", href: "/dashboard/agent", icon: UserCog });
   }
 

@@ -4,21 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore } from "@/firebase";
+import { UserRole } from "@/lib/types";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<'user' | 'agent'>("user");
+  const [role, setRole] = useState<UserRole>("user");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { setUser } = useStore();
@@ -39,19 +40,17 @@ export default function LoginPage() {
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
       
-      // Update role in Firestore based on selection if it exists, otherwise use selection
-      const userData = userDoc.exists() ? userDoc.data() : { role };
-      
-      // Update role if explicitly selected differently
-      if (userData.role !== role) {
-        await updateDoc(userRef, { role });
+      if (!userDoc.exists()) {
+        throw new Error("User profile not found. Please register.");
       }
+
+      const userData = userDoc.data() as any;
 
       setUser({
         uid: user.uid,
         email: user.email,
-        displayName: user.displayName,
-        role: role,
+        displayName: user.displayName || userData.displayName,
+        role: userData.role,
       });
 
       router.push("/dashboard");
@@ -82,29 +81,10 @@ export default function LoginPage() {
         <Card className="border-none shadow-xl">
           <CardHeader>
             <CardTitle>Welcome back</CardTitle>
-            <CardDescription>Select your role and enter credentials</CardDescription>
+            <CardDescription>Enter your credentials to continue</CardDescription>
           </CardHeader>
           <form onSubmit={handleLogin}>
             <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <Label>Login as</Label>
-                <RadioGroup 
-                  defaultValue="user" 
-                  className="flex gap-4" 
-                  value={role}
-                  onValueChange={(val) => setRole(val as 'user' | 'agent')}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="user" id="user" />
-                    <Label htmlFor="user" className="cursor-pointer font-normal">Customer</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="agent" id="agent" />
-                    <Label htmlFor="agent" className="cursor-pointer font-normal">Support Agent</Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
               <div className="space-y-2">
                 <Label htmlFor="email">Email address</Label>
                 <Input 
@@ -117,9 +97,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <Input 
                   id="password" 
                   type="password" 

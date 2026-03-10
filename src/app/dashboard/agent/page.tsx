@@ -1,11 +1,11 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react";
-import { collection, query, doc, updateDoc } from "firebase/firestore";
+import { collection, doc, updateDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
-import { Ticket, TicketStatus } from "@/lib/types";
+import { Ticket, TicketStatus, TicketCategory } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,7 @@ import {
   Calendar,
   AlertCircle,
   ShieldAlert,
-  ArrowRight,
-  RotateCcw
+  ArrowRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -38,8 +37,8 @@ export default function AgentDashboardPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Role protection
-    if (user && user.role !== 'agent') {
+    // Role protection - ensure user is an agent
+    if (user && user.role === 'user') {
       router.push("/dashboard");
     }
   }, [user, router]);
@@ -51,15 +50,40 @@ export default function AgentDashboardPage() {
 
   const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
+  // Department mapping logic
+  const departmentMapping: Record<string, TicketCategory> = {
+    'Billing Agent': 'Billing Inquiry',
+    'Technical Support Agent': 'Technical Support',
+    'Customer Support Agent': 'General Inquiry',
+    'Account Management Agent': 'Account Management',
+    'Developer Agent': 'Bug Report',
+    'Product Team Agent': 'Feature Request',
+  };
+
   const filteredTickets = useMemo(() => {
-    return rawTickets
+    if (!user) return [];
+    
+    // Admin sees everything, specific agents see their category
+    let filtered = rawTickets;
+    
+    if (user.role !== 'admin') {
+      const allowedCategory = departmentMapping[user.role];
+      if (allowedCategory) {
+        filtered = filtered.filter(t => t.issueCategory === allowedCategory);
+      } else {
+        // If they have an unknown agent role, show nothing for security
+        return [];
+      }
+    }
+
+    return filtered
       .filter(t => 
         t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.issueCategory.toLowerCase().includes(searchTerm.toLowerCase()) ||
         t.userEmail.toLowerCase().includes(searchTerm.toLowerCase())
       )
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [rawTickets, searchTerm]);
+  }, [rawTickets, searchTerm, user]);
 
   const updateStatus = (ticketId: string, status: TicketStatus) => {
     if (!db) return;
@@ -103,7 +127,7 @@ export default function AgentDashboardPage() {
 
   if (!isMounted || !user) return null;
 
-  if (user.role !== 'agent') {
+  if (user.role === 'user') {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <ShieldAlert className="w-16 h-16 text-destructive" />
@@ -122,8 +146,12 @@ export default function AgentDashboardPage() {
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary">Agent Command Center</h1>
-          <p className="text-muted-foreground">Monitor global support activity and update ticket statuses</p>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">{user.role} Dashboard</h1>
+          <p className="text-muted-foreground">
+            {user.role === 'admin' 
+              ? "Monitor global support activity across all departments" 
+              : `Managing ${departmentMapping[user.role]} tickets`}
+          </p>
         </div>
         <div className="relative w-full md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -145,7 +173,7 @@ export default function AgentDashboardPage() {
       ) : filteredTickets.length === 0 ? (
         <div className="text-center py-20 bg-muted/20 rounded-2xl border-2 border-dashed">
           <AlertCircle className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-          <p className="text-lg font-medium">No tickets found</p>
+          <p className="text-lg font-medium">No tickets found in your department</p>
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -178,6 +206,9 @@ export default function AgentDashboardPage() {
                   <Calendar className="w-3.5 h-3.5" />
                   <span>{format(new Date(ticket.createdAt), "MMM d, yyyy")}</span>
                 </div>
+                <div className="text-xs text-muted-foreground font-mono mt-1">
+                  ID: {ticket.id}
+                </div>
               </CardContent>
               <CardFooter className="pt-4 border-t flex flex-col gap-3">
                 <div className="flex gap-2 w-full">
@@ -201,7 +232,7 @@ export default function AgentDashboardPage() {
                   </Button>
                 </div>
                 <Button 
-                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
                   onClick={() => updateStatus(ticket.id!, 'Resolved')}
                   disabled={ticket.status === 'Resolved'}
                 >

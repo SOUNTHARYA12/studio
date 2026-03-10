@@ -8,18 +8,19 @@ import { doc, setDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore, FirestorePermissionError, errorEmitter } from "@/firebase";
+import { UserRole } from "@/lib/types";
 
 export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<'user' | 'agent'>("user");
+  const [role, setRole] = useState<UserRole>("user");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { setUser } = useStore();
@@ -93,27 +94,26 @@ export default function RegisterPage() {
         <Card className="border-none shadow-xl">
           <CardHeader>
             <CardTitle>Get started</CardTitle>
-            <CardDescription>Select your role and fill in your details</CardDescription>
+            <CardDescription>Fill in your details and select your role</CardDescription>
           </CardHeader>
           <form onSubmit={handleRegister}>
             <CardContent className="space-y-6">
-              <div className="space-y-3">
-                <Label>Register as</Label>
-                <RadioGroup 
-                  defaultValue="user" 
-                  className="flex gap-4" 
-                  value={role}
-                  onValueChange={(val) => setRole(val as 'user' | 'agent')}
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="user" id="user-reg" />
-                    <Label htmlFor="user-reg" className="cursor-pointer font-normal">Customer</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="agent" id="agent-reg" />
-                    <Label htmlFor="agent-reg" className="cursor-pointer font-normal">Support Agent</Label>
-                  </div>
-                </RadioGroup>
+              <div className="space-y-2">
+                <Label htmlFor="role">Register as</Label>
+                <Select value={role} onValueChange={(val) => setRole(val as UserRole)}>
+                  <SelectTrigger id="role">
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="user">Customer</SelectItem>
+                    <SelectItem value="Billing Agent">Billing Agent</SelectItem>
+                    <SelectItem value="Technical Support Agent">Technical Support Agent</SelectItem>
+                    <SelectItem value="Customer Support Agent">Customer Support Agent</SelectItem>
+                    <SelectItem value="Account Management Agent">Account Management Agent</SelectItem>
+                    <SelectItem value="Developer Agent">Developer Agent</SelectItem>
+                    <SelectItem value="Product Team Agent">Product Team Agent</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">

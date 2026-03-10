@@ -8,7 +8,10 @@
         "uid": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "displayName": { "type": "string" },
-        "role": { "type": "string", "enum": ["user", "agent"] },
+        "role": { 
+          "type": "string", 
+          "enum": ["user", "Billing Agent", "Technical Support Agent", "Customer Support Agent", "Account Management Agent", "Developer Agent", "Product Team Agent", "admin"] 
+        },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "role"]
