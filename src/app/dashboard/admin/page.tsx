@@ -51,13 +51,15 @@ import {
   Lock,
   Unlock,
   Eye,
-  UserCircle
+  UserCircle,
+  BarChart3
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import DashboardPage from "../page";
 import AgentDashboardPage from "../agent/page";
+import AnalyticsPage from "../../analytics/page";
 
 const ADMIN_EMAIL = "sountharyar.ad23@bitsathy.ac.in";
 
@@ -93,33 +95,6 @@ export default function AdminDashboardPage() {
     return users.filter(u => u.role !== 'user' && u.role !== 'admin');
   }, [users]);
 
-  const stats = useMemo(() => {
-    const total = tickets.length;
-    const open = tickets.filter(t => t.status === 'Open').length;
-    const inProgress = tickets.filter(t => t.status === 'In Progress').length;
-    const resolved = tickets.filter(t => t.status === 'Resolved').length;
-    
-    const deptChartData = Object.entries(tickets.reduce((acc: any, t) => {
-      acc[t.issueCategory] = (acc[t.issueCategory] || 0) + 1;
-      return acc;
-    }, {})).map(([name, value]) => ({ name, value }));
-
-    return { total, open, inProgress, resolved, deptChartData };
-  }, [tickets]);
-
-  const agentPerformance = useMemo(() => {
-    return agents.map(agent => {
-      const assignedTickets = tickets.filter(t => t.assignedAgentId === agent.uid || t.issueCategory.includes(agent.role.replace(' Agent', '')));
-      const resolvedCount = assignedTickets.filter(t => t.status === 'Resolved').length;
-      return {
-        ...agent,
-        assigned: assignedTickets.length,
-        resolved: resolvedCount,
-        efficiency: assignedTickets.length > 0 ? Math.round((resolvedCount / assignedTickets.length) * 100) : 0
-      };
-    });
-  }, [agents, tickets]);
-
   const filteredTickets = useMemo(() => {
     return tickets.filter(t => {
       const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) || t.userEmail.toLowerCase().includes(searchTerm.toLowerCase());
@@ -143,127 +118,38 @@ export default function AdminDashboardPage() {
       });
   };
 
-  const COLORS = ['#538CC6', '#4DDEE1', '#F4A261', '#E76F51', '#2A9D8F', '#264653'];
-
   if (!user || (user.email !== ADMIN_EMAIL && user.role !== 'admin')) return null;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary">System Administration</h1>
-          <p className="text-muted-foreground">Global monitoring of tickets, agents, and performance</p>
+          <h1 className="text-3xl font-bold tracking-tight text-primary">System Command Center</h1>
+          <p className="text-muted-foreground">Unified management across all platform roles and departments</p>
         </div>
       </div>
 
       <Tabs defaultValue="analytics" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 h-12 bg-muted/50">
-          <TabsTrigger value="analytics" className="flex gap-2"><Settings className="w-4 h-4" /> Analytics</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5 h-12 bg-muted/50 p-1 mb-6">
+          <TabsTrigger value="analytics" className="flex gap-2"><BarChart3 className="w-4 h-4" /> Global Analytics</TabsTrigger>
           <TabsTrigger value="tickets" className="flex gap-2"><TicketIcon className="w-4 h-4" /> Global Tickets</TabsTrigger>
           <TabsTrigger value="agents" className="flex gap-2"><Users className="w-4 h-4" /> Staff Management</TabsTrigger>
-          <TabsTrigger value="customer-view" className="flex gap-2"><Eye className="w-4 h-4" /> Customer Perspective</TabsTrigger>
-          <TabsTrigger value="agent-view" className="flex gap-2"><ShieldAlert className="w-4 h-4" /> Agent Perspective</TabsTrigger>
+          <TabsTrigger value="customer-view" className="flex gap-2"><Eye className="w-4 h-4" /> Customer View</TabsTrigger>
+          <TabsTrigger value="agent-view" className="flex gap-2"><ShieldAlert className="w-4 h-4" /> Agent View</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="analytics" className="space-y-6 pt-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <Card className="border-none shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Tickets</CardTitle>
-                <TicketIcon className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{stats.total}</div>
-                <p className="text-xs text-muted-foreground">Across entire platform</p>
-              </CardContent>
-            </Card>
-            <Card className="border-none shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Resolved</CardTitle>
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-emerald-600">{stats.resolved}</div>
-                <p className="text-xs text-muted-foreground">{stats.total > 0 ? Math.round((stats.resolved/stats.total)*100) : 0}% resolution rate</p>
-              </CardContent>
-            </Card>
-            <Card className="border-none shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-                <Clock className="h-4 w-4 text-amber-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-amber-600">{stats.inProgress}</div>
-                <p className="text-xs text-muted-foreground">Ongoing investigation</p>
-              </CardContent>
-            </Card>
-            <Card className="border-none shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Active Staff</CardTitle>
-                <Users className="h-4 w-4 text-primary" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{agents.length}</div>
-                <p className="text-xs text-muted-foreground">Department-assigned agents</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="lg:col-span-4 border-none shadow-sm">
-              <CardHeader>
-                <CardTitle>Department Load</CardTitle>
-                <CardDescription>Volume of tickets per category</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats.deptChartData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" fontSize={10} interval={0} />
-                    <YAxis fontSize={10} />
-                    <Tooltip cursor={{fill: 'hsl(var(--muted))'}} />
-                    <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-            <Card className="lg:col-span-3 border-none shadow-sm">
-              <CardHeader>
-                <CardTitle>Issue Distribution</CardTitle>
-                <CardDescription>Percentage share by category</CardDescription>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={stats.deptChartData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
-                      dataKey="value"
-                    >
-                      {stats.deptChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
+        <TabsContent value="analytics" className="animate-in fade-in slide-in-from-top-4 duration-500">
+          <AnalyticsPage />
         </TabsContent>
 
-        <TabsContent value="tickets" className="pt-6">
+        <TabsContent value="tickets" className="space-y-4">
           <Card className="border-none shadow-sm overflow-hidden">
             <CardHeader className="border-b bg-muted/30">
               <div className="flex flex-col md:flex-row md:items-center gap-4">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Search globally..." 
+                    placeholder="Search globally by email or description..." 
                     className="pl-9" 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -271,8 +157,8 @@ export default function AdminDashboardPage() {
                 </div>
                 <div className="flex gap-2">
                   <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-[130px]">
-                      <SelectValue placeholder="Status" />
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
@@ -281,13 +167,27 @@ export default function AdminDashboardPage() {
                       <SelectItem value="Resolved">Resolved</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                    <SelectTrigger className="w-[160px]">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="Technical Support">Technical Support</SelectItem>
+                      <SelectItem value="Billing Inquiry">Billing Inquiry</SelectItem>
+                      <SelectItem value="Account Management">Account Management</SelectItem>
+                      <SelectItem value="Bug Report">Bug Report</SelectItem>
+                      <SelectItem value="Feature Request">Feature Request</SelectItem>
+                      <SelectItem value="General Inquiry">General Inquiry</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </CardHeader>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>ID</TableHead>
+                  <TableHead>Ticket ID</TableHead>
                   <TableHead>User</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Priority</TableHead>
@@ -297,10 +197,12 @@ export default function AdminDashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredTickets.map((ticket) => (
+                {ticketsLoading ? (
+                  <TableRow><TableCell colSpan={7} className="h-24 text-center">Loading tickets...</TableCell></TableRow>
+                ) : filteredTickets.map((ticket) => (
                   <TableRow key={ticket.id}>
-                    <TableCell className="font-mono text-xs">#{ticket.id.slice(0, 6)}</TableCell>
-                    <TableCell className="text-xs truncate max-w-[120px]">{ticket.userEmail}</TableCell>
+                    <TableCell className="font-mono text-xs">#{ticket.id.slice(0, 8)}</TableCell>
+                    <TableCell className="text-xs">{ticket.userEmail}</TableCell>
                     <TableCell className="text-xs font-medium">{ticket.issueCategory}</TableCell>
                     <TableCell>
                       <Badge variant={ticket.priority === 'High' ? 'destructive' : 'outline'} className="text-[10px]">
@@ -329,47 +231,33 @@ export default function AdminDashboardPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="agents" className="pt-6">
+        <TabsContent value="agents" className="pt-2">
           <Card className="border-none shadow-sm">
             <CardHeader>
-              <CardTitle>Staff Management & Performance</CardTitle>
-              <CardDescription>Monitor resolution rates and account statuses</CardDescription>
+              <CardTitle>Staff Management</CardTitle>
+              <CardDescription>Monitor resolution efficiency and account status across departments</CardDescription>
             </CardHeader>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Agent Name</TableHead>
+                  <TableHead>Agent</TableHead>
                   <TableHead>Department</TableHead>
-                  <TableHead className="text-center">Assigned</TableHead>
-                  <TableHead className="text-center">Resolved</TableHead>
-                  <TableHead className="text-center">Efficiency</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="text-center">Account Status</TableHead>
+                  <TableHead className="text-right">Access Control</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {agentPerformance.map((agent) => (
+                {usersLoading ? (
+                  <TableRow><TableCell colSpan={4} className="h-24 text-center">Loading staff records...</TableCell></TableRow>
+                ) : agents.map((agent) => (
                   <TableRow key={agent.uid}>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="font-medium">{agent.displayName}</span>
+                        <span className="font-medium text-sm">{agent.displayName}</span>
                         <span className="text-xs text-muted-foreground">{agent.email}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">{agent.role}</TableCell>
-                    <TableCell className="text-center font-bold">{agent.assigned}</TableCell>
-                    <TableCell className="text-center font-bold text-emerald-600">{agent.resolved}</TableCell>
-                    <TableCell className="text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        <span className="text-xs font-medium">{agent.efficiency}%</span>
-                        <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-primary" 
-                            style={{ width: `${agent.efficiency}%` }}
-                          />
-                        </div>
-                      </div>
-                    </TableCell>
                     <TableCell className="text-center">
                       <Badge variant={agent.status === 'disabled' ? 'destructive' : 'secondary'}>
                         {agent.status === 'disabled' ? 'Disabled' : 'Active'}
@@ -382,7 +270,8 @@ export default function AdminDashboardPage() {
                         className={agent.status === 'disabled' ? "text-emerald-600" : "text-destructive"}
                         onClick={() => toggleUserStatus(agent.uid, agent.status)}
                       >
-                        {agent.status === 'disabled' ? <Unlock className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                        {agent.status === 'disabled' ? <Unlock className="h-4 w-4 mr-2" /> : <Lock className="h-4 w-4 mr-2" />}
+                        {agent.status === 'disabled' ? 'Enable' : 'Disable'}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -392,18 +281,18 @@ export default function AdminDashboardPage() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="customer-view" className="pt-6">
+        <TabsContent value="customer-view" className="pt-2">
           <div className="bg-muted/30 p-4 rounded-xl border border-dashed mb-6 flex items-center gap-3">
             <Eye className="w-5 h-5 text-primary" />
-            <p className="text-sm font-medium">Viewing platform as a standard Customer.</p>
+            <p className="text-sm font-medium">Viewing platform as a standard Customer. Actions here will affect your actual user account data.</p>
           </div>
           <DashboardPage />
         </TabsContent>
 
-        <TabsContent value="agent-view" className="pt-6">
+        <TabsContent value="agent-view" className="pt-2">
           <div className="bg-muted/30 p-4 rounded-xl border border-dashed mb-6 flex items-center gap-3">
             <ShieldAlert className="w-5 h-5 text-primary" />
-            <p className="text-sm font-medium">Viewing platform as a Department Agent (Filtered view).</p>
+            <p className="text-sm font-medium">Viewing platform as an Agent. You can manage tickets across all departments from here.</p>
           </div>
           <AgentDashboardPage />
         </TabsContent>

@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useMemo, useState, useEffect } from "react";
@@ -19,9 +20,9 @@ import {
   Legend
 } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { format, eachDayOfInterval, subDays } from "date-fns";
+import { format, eachDayOfInterval, subDays, startOfDay, isSameDay } from "date-fns";
 import { collection, query, where } from "firebase/firestore";
-import { useFirestore, useCollection } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Ticket } from "@/lib/types";
 
 export default function AnalyticsPage() {
@@ -33,9 +34,10 @@ export default function AnalyticsPage() {
     setIsMounted(true);
   }, []);
 
-  const ticketsQuery = useMemo(() => {
+  const ticketsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     const ticketsRef = collection(db, 'tickets');
+    // Admins see all for global analytics, users see their own
     if (user.role === 'admin') {
       return ticketsRef;
     }
@@ -44,32 +46,28 @@ export default function AnalyticsPage() {
 
   const { data: rawTickets, loading: isLoading } = useCollection<Ticket>(ticketsQuery);
 
-  const tickets = useMemo(() => {
-    return [...rawTickets].sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
-  }, [rawTickets]);
-
   const categoryData = useMemo(() => {
+    if (!rawTickets) return [];
     const counts: Record<string, number> = {};
-    tickets.forEach(t => {
+    rawTickets.forEach(t => {
       counts[t.issueCategory] = (counts[t.issueCategory] || 0) + 1;
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [tickets]);
+  }, [rawTickets]);
 
   const priorityData = useMemo(() => {
+    if (!rawTickets) return [];
     const counts = { Low: 0, Medium: 0, High: 0 };
-    tickets.forEach(t => {
-      counts[t.priority]++;
+    rawTickets.forEach(t => {
+      if (t.priority in counts) {
+        counts[t.priority as keyof typeof counts]++;
+      }
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
-  }, [tickets]);
+  }, [rawTickets]);
 
   const timeSeriesData = useMemo(() => {
-    if (!isMounted) return [];
+    if (!isMounted || !rawTickets) return [];
     
     const last7Days = eachDayOfInterval({
       start: subDays(new Date(), 6),
@@ -78,24 +76,24 @@ export default function AnalyticsPage() {
 
     return last7Days.map(date => {
       const dateStr = format(date, 'MMM d');
-      const count = tickets.filter(t => {
-        try {
-          return format(new Date(t.createdAt), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd');
-        } catch (e) {
-          return false;
-        }
+      const count = rawTickets.filter(t => {
+        if (!t.createdAt) return false;
+        const ticketDate = new Date(t.createdAt);
+        return isSameDay(ticketDate, date);
       }).length;
       return { date: dateStr, count };
     });
-  }, [tickets, isMounted]);
+  }, [rawTickets, isMounted]);
 
   const COLORS = ['#538CC6', '#4DDEE1', '#F4A261', '#E76F51', '#2A9D8F', '#264653'];
+
+  if (!user) return null;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Support Analytics</h1>
-        <p className="text-muted-foreground">Visualizing performance and issue distributions</p>
+        <h1 className="text-3xl font-bold tracking-tight text-primary">Support Analytics</h1>
+        <p className="text-muted-foreground">Real-time performance metrics and issue distribution</p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -109,16 +107,25 @@ export default function AnalyticsPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={timeSeriesData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--muted))" />
-                  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} />
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} 
+                  />
                   <Tooltip 
-                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                   />
                   <Line 
                     type="monotone" 
                     dataKey="count" 
                     stroke="hsl(var(--primary))" 
-                    strokeWidth={3} 
+                    strokeWidth={4} 
                     dot={{ fill: 'hsl(var(--primary))', strokeWidth: 2, r: 4 }}
                     activeDot={{ r: 6, strokeWidth: 0 }}
                   />
@@ -131,7 +138,7 @@ export default function AnalyticsPage() {
         <Card className="border-none shadow-sm">
           <CardHeader>
             <CardTitle>Issue Categories</CardTitle>
-            <CardDescription>Distribution of ticket types</CardDescription>
+            <CardDescription>Real-time distribution of ticket types</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             {isLoading || !isMounted ? <Skeleton className="w-full h-full" /> : (
@@ -151,7 +158,7 @@ export default function AnalyticsPage() {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '10px' }} />
+                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: '10px', paddingTop: '20px' }} />
                 </PieChart>
               </ResponsiveContainer>
             )}
@@ -160,8 +167,8 @@ export default function AnalyticsPage() {
 
         <Card className="md:col-span-2 border-none shadow-sm">
           <CardHeader>
-            <CardTitle>Priority Distribution</CardTitle>
-            <CardDescription>Breakdown of urgency levels</CardDescription>
+            <CardTitle>Priority Load</CardTitle>
+            <CardDescription>Breakdown of current urgency levels</CardDescription>
           </CardHeader>
           <CardContent className="h-[300px]">
             {isLoading || !isMounted ? <Skeleton className="w-full h-full" /> : (
@@ -170,7 +177,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
                   <YAxis axisLine={false} tickLine={false} />
                   <Tooltip cursor={{ fill: 'transparent' }} />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                     {priorityData.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
@@ -188,21 +195,19 @@ export default function AnalyticsPage() {
 
         <Card className="border-none shadow-sm bg-primary text-primary-foreground">
           <CardHeader>
-            <CardTitle>AI Insights</CardTitle>
-            <CardDescription className="text-primary-foreground/70">Efficiency recommendations</CardDescription>
+            <CardTitle>Efficiency Insights</CardTitle>
+            <CardDescription className="text-primary-foreground/70">Real-time resolution metrics</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-white/10 p-4 rounded-lg">
-              <p className="text-sm font-medium">Resolution Efficiency</p>
-              <p className="text-2xl font-bold">+14%</p>
-              <p className="text-xs mt-1 text-primary-foreground/70">Since implementing AI auto-summaries.</p>
+            <div className="bg-white/10 p-4 rounded-xl border border-white/10">
+              <p className="text-xs font-medium uppercase tracking-wider opacity-70">Total Volume</p>
+              <p className="text-3xl font-bold">{rawTickets.length}</p>
             </div>
-            <div className="bg-white/10 p-4 rounded-lg">
-              <p className="text-sm font-medium">Resolution Rate</p>
-              <p className="text-2xl font-bold">
-                {tickets.length > 0 ? Math.round((tickets.filter(t => t.status === 'Resolved').length / tickets.length) * 100) : 0}%
+            <div className="bg-white/10 p-4 rounded-xl border border-white/10">
+              <p className="text-xs font-medium uppercase tracking-wider opacity-70">Resolution Rate</p>
+              <p className="text-3xl font-bold">
+                {rawTickets.length > 0 ? Math.round((rawTickets.filter(t => t.status === 'Resolved').length / rawTickets.length) * 100) : 0}%
               </p>
-              <p className="text-xs mt-1 text-primary-foreground/70">Average across all current tickets.</p>
             </div>
           </CardContent>
         </Card>
