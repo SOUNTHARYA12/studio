@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react";
@@ -17,21 +16,33 @@ import {
   SelectValue 
 } from "@/components/ui/select";
 import { TicketCategory, TicketPriority } from "@/lib/types";
-import { Sparkles, Loader2, ArrowLeft, Send } from "lucide-react";
+import { 
+  Sparkles, 
+  Loader2, 
+  ArrowLeft, 
+  Send, 
+  MessageSquare, 
+  Wrench, 
+  CreditCard, 
+  UserCog, 
+  Bug, 
+  Lightbulb 
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { useFirestore } from "@/firebase";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { summarizeTicket } from '@/ai/flows/automated-ticket-summary';
+import { SelectionCard } from "@/components/ui/selection-card";
 
-const categories: TicketCategory[] = [
-  'Technical Support',
-  'Billing Inquiry',
-  'Account Management',
-  'General Inquiry',
-  'Bug Report',
-  'Feature Request'
+const categoryOptions = [
+  { id: 'General Inquiry', title: 'General Inquiry', description: 'Standard questions or feedback', icon: MessageSquare },
+  { id: 'Technical Support', title: 'Technical Support', description: 'Hardware or software issues', icon: Wrench },
+  { id: 'Billing Inquiry', title: 'Billing Inquiry', description: 'Invoices, payments, and refunds', icon: CreditCard },
+  { id: 'Account Management', title: 'Account Management', description: 'Access, security, or profile updates', icon: UserCog },
+  { id: 'Bug Report', title: 'Bug Report', description: 'Report technical errors or crashes', icon: Bug },
+  { id: 'Feature Request', title: 'Feature Request', description: 'Suggest new platform capabilities', icon: Lightbulb },
 ];
 
 export default function CreateTicketPage() {
@@ -96,7 +107,7 @@ export default function CreateTicketPage() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-700">
+    <div className="max-w-4xl mx-auto space-y-10 animate-in slide-in-from-bottom-8 duration-700">
       <div className="flex items-center gap-6">
         <Button variant="outline" size="icon" className="rounded-2xl h-12 w-12 border-white/10 hover:bg-white/5 transition-all" asChild>
           <Link href="/dashboard">
@@ -120,21 +131,24 @@ export default function CreateTicketPage() {
           <CardDescription className="text-base">Our neural networks will automatically route your request to the relevant department based on your input.</CardDescription>
         </CardHeader>
         <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              <div className="space-y-3">
-                <Label htmlFor="category" className="text-xs font-black uppercase tracking-widest text-primary/80">Issue Classification</Label>
-                <Select value={category} onValueChange={(val) => setCategory(val as TicketCategory)}>
-                  <SelectTrigger id="category" className="h-14 rounded-2xl bg-white/5 border-white/10 text-base font-bold">
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent className="glass-card">
-                    {categories.map((cat) => (
-                      <SelectItem key={cat} value={cat} className="font-bold py-3">{cat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <CardContent className="space-y-10">
+            <div className="space-y-4">
+              <Label className="text-xs font-black uppercase tracking-widest text-primary/80">Issue Classification</Label>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {categoryOptions.map((opt) => (
+                  <SelectionCard
+                    key={opt.id}
+                    title={opt.title}
+                    description={opt.description}
+                    icon={opt.icon}
+                    selected={category === opt.id}
+                    onClick={() => setCategory(opt.id as TicketCategory)}
+                  />
+                ))}
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-3">
                 <Label htmlFor="priority" className="text-xs font-black uppercase tracking-widest text-primary/80">Urgency Protocol</Label>
                 <Select value={priority} onValueChange={(val) => setPriority(val as TicketPriority)}>
@@ -155,7 +169,7 @@ export default function CreateTicketPage() {
               <Textarea 
                 id="description" 
                 placeholder="Provide a comprehensive breakdown of the issue. Be as detailed as possible for optimal AI routing." 
-                className="min-h-[250px] rounded-2xl bg-white/5 border-white/10 text-base font-medium p-6 resize-none focus:border-primary/50 transition-all"
+                className="min-h-[200px] rounded-2xl bg-white/5 border-white/10 text-base font-medium p-6 resize-none focus:border-primary/50 transition-all"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
