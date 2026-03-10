@@ -47,26 +47,36 @@ export function SidebarNav() {
     setUser(null);
   };
 
+  const isAgent = user?.role !== 'user' && user?.role !== 'admin';
+  const isAdmin = user?.role === 'admin' || user?.email === ADMIN_EMAIL;
+  const isStandardUser = user?.role === 'user';
+
   const navItems = [
     { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
     { name: "Vault", href: "/analytics", icon: BarChart3 },
-    { name: "Queue", href: "/tickets", icon: TicketIcon },
-    { name: "Profile", href: "/dashboard/profile", icon: UserCircle },
   ];
 
   if (user) {
-    // Only standard users can create tickets
-    if (user.role === 'user') {
-      navItems.splice(3, 0, { name: "Create", href: "/tickets/new", icon: PlusCircle });
+    // Agents get "Mission" instead of "Queue"
+    if (isAgent) {
+      navItems.push({ name: "Mission", href: "/dashboard/agent", icon: UserCog });
     }
 
-    if (user.role === 'admin' || user.email === ADMIN_EMAIL) {
-      navItems.push({ name: "Command", href: "/dashboard/admin", icon: Settings });
+    // Standard Users and Admins still need "Queue"
+    // (Admins for global view, Users for personal view)
+    if (!isAgent) {
+      navItems.push({ name: "Queue", href: "/tickets", icon: TicketIcon });
     }
-    
-    const isAgent = user.role !== 'user' && user.role !== 'admin';
-    if (isAgent) {
-      navItems.splice(1, 0, { name: "Mission", href: "/dashboard/agent", icon: UserCog });
+
+    // Only standard users can create tickets
+    if (isStandardUser) {
+      navItems.push({ name: "Create", href: "/tickets/new", icon: PlusCircle });
+    }
+
+    navItems.push({ name: "Profile", href: "/dashboard/profile", icon: UserCircle });
+
+    if (isAdmin) {
+      navItems.push({ name: "Command", href: "/dashboard/admin", icon: Settings });
     }
   }
 
