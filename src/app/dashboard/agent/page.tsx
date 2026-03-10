@@ -18,9 +18,8 @@ import {
   Tag, 
   Calendar,
   AlertCircle,
-  ShieldAlert,
-  ArrowRight,
-  Filter
+  Filter,
+  ArrowRight
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -28,16 +27,6 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-
-// Mapping of Agent Roles to Ticket Categories for dynamic filtering
-const ROLE_TO_CATEGORY_MAP: Record<string, TicketCategory> = {
-  'Billing Agent': 'Billing Inquiry',
-  'Technical Support Agent': 'Technical Support',
-  'Customer Support Agent': 'General Inquiry',
-  'Account Management Agent': 'Account Management',
-  'Developer Agent': 'Bug Report',
-  'Product Team Agent': 'Feature Request',
-};
 
 export default function AgentDashboardPage() {
   const { user } = useStore();
@@ -49,7 +38,7 @@ export default function AgentDashboardPage() {
 
   useEffect(() => {
     setIsMounted(true);
-    // Role protection - ensure user is an agent or admin
+    // Role protection - ensure user is an agent (role matches a category) or admin
     if (user && user.role === 'user') {
       router.push("/dashboard");
     }
@@ -67,17 +56,13 @@ export default function AgentDashboardPage() {
     
     // Filter logic: 
     // 1. Admins see everything.
-    // 2. Agents see tickets matching their department/role mapping.
+    // 2. Agents see tickets matching their department/role mapping (which are now identical strings).
     let filtered = rawTickets;
     
-    if (user.role !== 'admin') {
-      const allowedCategory = ROLE_TO_CATEGORY_MAP[user.role];
-      if (allowedCategory) {
-        filtered = filtered.filter(t => t.issueCategory === allowedCategory);
-      } else {
-        // Fallback for unexpected roles
-        return [];
-      }
+    if (user.role !== 'admin' && user.role !== 'user') {
+      filtered = filtered.filter(t => t.issueCategory === user.role);
+    } else if (user.role === 'user') {
+      return [];
     }
 
     // Apply search filter
@@ -131,7 +116,6 @@ export default function AgentDashboardPage() {
   };
 
   if (!isMounted || !user) return null;
-
   if (user.role === 'user') return null;
 
   return (
@@ -140,14 +124,14 @@ export default function AgentDashboardPage() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Badge variant="secondary" className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-              {user.role}
+              {user.role} Department
             </Badge>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-primary">Support Queue</h1>
           <p className="text-muted-foreground">
             {user.role === 'admin' 
               ? "Global oversight of all departmental inquiries" 
-              : `Managing the ${ROLE_TO_CATEGORY_MAP[user.role]} department`}
+              : `Managing the ${user.role} queue`}
           </p>
         </div>
         <div className="relative w-full md:w-96 group">

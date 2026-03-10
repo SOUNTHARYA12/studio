@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link";
@@ -58,7 +57,9 @@ export function SidebarNav() {
       navItems.push({ name: "Command", href: "/dashboard/admin", icon: Settings });
     }
     
-    if (user.role !== 'user') {
+    // An agent is someone whose role is not 'user' and not 'admin'
+    const isAgent = user.role !== 'user' && user.role !== 'admin';
+    if (isAgent) {
       navItems.splice(1, 0, { name: "Mission", href: "/dashboard/agent", icon: UserCog });
     }
   }
