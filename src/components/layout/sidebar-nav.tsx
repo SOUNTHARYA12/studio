@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link";
@@ -56,7 +57,8 @@ export function SidebarNav() {
     if (user.role === 'admin' || user.email === ADMIN_EMAIL) {
       navItems.push({ name: "Admin Dashboard", href: "/dashboard/admin", icon: Settings });
     }
-    if (user.role !== 'user' && user.role !== 'admin') {
+    // Agents see their dashboard, but Admins also get a direct link for convenience
+    if (user.role !== 'user') {
       navItems.splice(1, 0, { name: "Agent Dashboard", href: "/dashboard/agent", icon: UserCog });
     }
   }
